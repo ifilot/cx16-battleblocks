@@ -21,11 +21,15 @@
 #include "screen.h"
 
 void main() {
+    // initialize screen
     screen_init();
 
+    // load tile data
     screen_load_tiles("tiles.dat", TILEBASE);
 
-    screen_fill_layer(0, LAYER0, 0x00, )
+    // clear screen
+    screen_fill_layer(1, 0, 0x00, MAPHEIGHT, MAPWIDTH);
+    screen_fill_layer(0, 1, 0x00, MAPHEIGHT, MAPWIDTH);
 
     while(1) {
 

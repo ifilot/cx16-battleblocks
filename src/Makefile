@@ -9,7 +9,7 @@ BBLOCKS.PRG: *.c
 run: BBLOCKS.PRG TILES.DAT
 	$(EMU) -prg BBLOCKS.PRG -run
 
-TILES.DAT:
+TILES.DAT: ../assets/png/playscreen.png
 	python3 ../assets/scripts/convert_tilemap.py playscreen.png TILES.DAT
 
 clean:
