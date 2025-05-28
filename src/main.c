@@ -28,8 +28,8 @@ void main() {
     screen_load_tiles("tiles.dat", TILEBASE);
 
     // clear screen
-    screen_fill_layer(1, 0, 0x00, MAPHEIGHT, MAPWIDTH);
-    screen_fill_layer(0, 1, 0x00, MAPHEIGHT, MAPWIDTH);
+    screen_fill_layer(LAYER0, 0x01);
+    screen_fill_layer(LAYER1, 0x00);
 
     while(1) {
 

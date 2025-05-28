@@ -32,4 +32,7 @@
 #define MAPHEIGHT           64
 #define MAPWIDTH            64
 
+#define LAYER0              0
+#define LAYER1              1
+
 #endif // _CONSTANTS_H

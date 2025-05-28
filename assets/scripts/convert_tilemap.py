@@ -64,7 +64,6 @@ def build_tiles(img, palette):
                     col = img.getpixel(((j*16+x),(i*16+y)))
                     idx = find_closest_color(col, palette)
                     data.extend(idx)
-    
     return data
 
 def find_closest_color(col, palette):

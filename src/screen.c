@@ -32,18 +32,19 @@ void screen_init() {
     // layer 0
     // This layer contains the game background and the puzzle background; this
     // includes all 'static' squares
-    VERA.layer0.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth
-    VERA.layer0.tilebase = (TILEBASE >> 9) | 0x03;              // 16 x 16 tiles
-    VERA.layer0.mapbase  = MAPBASE0 >> 9;                       // upper 8 bits
+    VERA.layer0.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
+    VERA.layer0.tilebase = (TILEBASE >> 9) | 0x03;          // 16 x 16 tiles
+    VERA.layer0.mapbase  = MAPBASE0 >> 9;                   // upper 8 bits
     
     // layer 1
     // On this layer, the values that the user fills in for the tiles are shown
-    VERA.layer1.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth
-    VERA.layer1.tilebase = (TILEBASE >> 9) | 0x03;              // 16 x 16 tiles
-    VERA.layer1.mapbase  = MAPBASE1 >> 9;
+    VERA.layer1.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
+    VERA.layer1.tilebase = (TILEBASE >> 9) | 0x03;          // 16 x 16 tiles
+    VERA.layer1.mapbase  = MAPBASE1 >> 9;                   // upper 8 bits
 
-    // enable both layers
-    VERA.display.video |= 0b00110000;
+    // enable both layers, no sprites
+    //VERA.display.video |= 0b00110000;
+    VERA.display.video = (1 << 5) | (1 << 4) | 1;           // VGA and layers 1 and 2
 
     // enable sprites
     //VERA.display.video |= 0b01000000;
@@ -57,31 +58,4 @@ void screen_load_tiles(const char* filename, uint32_t addr) {
     cbm_k_setnam(filename);
     cbm_k_setlfs(0, 8, 2);
     cbm_k_load(2 + (addr >> 16), addr); // will load directly into VRAM
-}
-
-/**
- * @brief Fill layer 0 with all tiles of the same type
- *
- * @param tile_id background tile index
- * @param layer   which layer to fill
- * @param b2      which tile info to use
- * @param height  height of the map
- * @param width   width of the map
- */
-void screen_fill_layer(uint8_t tile_id, uint8_t layer, uint8_t b2, uint8_t height, uint8_t width) {
-    uint8_t i,j;
-    uint32_t map_base_addr;
-
-    // set background tiles
-    map_base_addr = (layer == 0 ? MAPBASE0 : MAPBASE1);
-    VERA.address = map_base_addr;           // lower byte address
-    VERA.address_hi = map_base_addr >> 16;  // upper byte address
-    VERA.address_hi |= (1 << 4);            // enabled increment mode
-
-    for (j=0; j<height; j++) {
-        for (i=0; i<width; i++) {
-            VERA.data0 = tile_id;       // background tile
-            VERA.data0 = b2;            // palette offset data
-        }
-    }
 }

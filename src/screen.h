@@ -41,14 +41,11 @@ void screen_init();
 void screen_load_tiles(const char* filename, uint32_t addr);
 
 /**
- * @brief Fill layer 0 with all tiles of the same type
+ * @brief Fill the specified tilemap layer with the same tile.
  *
- * @param tile_id background tile index
- * @param layer   which layer to fill
- * @param b2      which tile info to use
- * @param height  height of the map
- * @param width   width of the map
+ * @param layer Layer index (0 or 1)
+ * @param tile_id Tile index to fill the layer with
  */
-void screen_fill_layer(uint8_t tile_id, uint8_t layer, uint8_t b2, uint8_t height, uint8_t width);
+extern void __fastcall__ screen_fill_layer(uint8_t layer, uint8_t tile_id);
 
 #endif // _VIDEO_H
