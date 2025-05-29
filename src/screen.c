@@ -59,3 +59,137 @@ void screen_load_tiles(const char* filename, uint32_t addr) {
     cbm_k_setlfs(0, 8, 2);
     cbm_k_load(2 + (addr >> 16), addr); // will load directly into VRAM
 }
+
+/**
+ * @brief Create the scene background
+ * 
+ */
+void screen_create_background() {
+    // playfield
+    screen_create_tiled_rectangle(2, 8, 10, 20);
+    screen_create_tiled_rectangle(22, 8, 10, 20);
+
+    //score boxes
+    screen_create_lined_rectangle(2, 2, 12, 3);
+    screen_create_lined_rectangle(22, 2, 12, 3);
+
+    // next piece box
+    screen_create_tiled_rectangle(14, 8, 4, 4);
+    screen_create_tiled_rectangle(34, 8, 4, 4);
+
+    // upcoming pieces 2-4 boxes
+    screen_create_tiled_rectangle(14, 14, 4, 12);
+    screen_create_tiled_rectangle(34, 14, 4, 12);
+}
+
+/**
+ * @brief Created tiles background
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param w number of tiles width
+ * @param h number of tiles height
+ */
+void screen_create_tiled_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+    uint8_t i,j;
+    uint8_t ctr = 0;
+    uint32_t map_base_addr;
+
+    for(i=0; i<h; i++) {
+        map_base_addr = MAPBASE0 + ((y + i) << 7) + (x << 1);
+        VERA.address = map_base_addr;
+        VERA.address_hi = map_base_addr >> 16;
+        VERA.address_hi |= 0b10000;
+        for(j=0; j<w; j++) {
+            VERA.data0 = (ctr++ % 2 == 0) ? TILE_BG1 : TILE_BG2;
+            VERA.data0 = 0;
+        }
+        ctr++;
+    }
+
+    // also create border
+    screen_create_border(x, y, w, h);
+}
+
+/**
+ * @brief Created tiles background
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param w number of tiles width
+ * @param h number of tiles height
+ */
+void screen_create_lined_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+    uint8_t i,j;
+    uint8_t ctr = 0;
+    uint32_t map_base_addr;
+
+    for(i=0; i<h; i++) {
+        map_base_addr = MAPBASE0 + ((y + i) << 7) + (x << 1);
+        VERA.address = map_base_addr;
+        VERA.address_hi = map_base_addr >> 16;
+        VERA.address_hi |= 0b10000;
+        for(j=0; j<w; j++) {
+            VERA.data0 = (ctr % 2 == 0) ? TILE_BG1 : TILE_BG2;
+            VERA.data0 = 0;
+        }
+        ctr++;
+    }
+
+    // also create border
+    screen_create_border(x, y, w, h);
+}
+
+/**
+ * @brief Created lined background
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param w number of tiles width
+ * @param h number of tiles height
+ */
+void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+    uint8_t i,j;
+    uint8_t ctr = 0;
+    uint32_t map_base_addr;
+
+    // top
+    map_base_addr = MAPBASE1 + ((y - 1) << 7) + ((x-1) << 1);
+    VERA.address = map_base_addr;
+    VERA.address_hi = map_base_addr >> 16;
+    VERA.address_hi |= (2 << 4);
+    VERA.data0 = TILE_BORDER_LT;
+    for(j=0; j<w; j++) {
+        VERA.data0 = TILE_BORDER_TOP;
+    }
+    VERA.data0 = TILE_BORDER_RT;
+
+    // bottom
+    map_base_addr = MAPBASE1 + ((y + h) << 7) + ((x-1) << 1);
+    VERA.address = map_base_addr;
+    VERA.address_hi = map_base_addr >> 16;
+    VERA.address_hi |= (2 << 4);
+    VERA.data0 = TILE_BORDER_LB;
+    for(j=0; j<w; j++) {
+        VERA.data0 = TILE_BORDER_BOTTOM;
+    }
+    VERA.data0 = TILE_BORDER_RB;
+
+    // left
+    map_base_addr = MAPBASE1 + (y << 7) + ((x-1) << 1);
+    VERA.address = map_base_addr;
+    VERA.address_hi = map_base_addr >> 16;
+    VERA.address_hi |= (8 << 4);
+    for(j=0; j<h; j++) {
+        VERA.data0 = TILE_BORDER_LEFT;
+    }
+
+    // right
+    map_base_addr = MAPBASE1 + (y << 7) + ((x+w) << 1);
+    VERA.address = map_base_addr;
+    VERA.address_hi = map_base_addr >> 16;
+    VERA.address_hi |= (8 << 4);
+    for(j=0; j<h; j++) {
+        VERA.data0 = TILE_BORDER_RIGHT;
+    }
+}

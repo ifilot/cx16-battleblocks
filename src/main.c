@@ -31,6 +31,8 @@ void main() {
     screen_fill_layer(LAYER0, 0x01);
     screen_fill_layer(LAYER1, 0x00);
 
+    screen_create_background();
+
     while(1) {
 
     }

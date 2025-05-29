@@ -41,6 +41,42 @@ void screen_init();
 void screen_load_tiles(const char* filename, uint32_t addr);
 
 /**
+ * @brief Create the scene background
+ * 
+ */
+void screen_create_background();
+
+/**
+ * @brief Created tiled background
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param w number of tiles width
+ * @param h number of tiles height
+ */
+void screen_create_tiled_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
+
+/**
+ * @brief Created lined background
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param w number of tiles width
+ * @param h number of tiles height
+ */
+void screen_create_lined_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
+
+/**
+ * @brief Created lined background
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param w number of tiles width
+ * @param h number of tiles height
+ */
+void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
+
+/**
  * @brief Fill the specified tilemap layer with the same tile.
  *
  * @param layer Layer index (0 or 1)

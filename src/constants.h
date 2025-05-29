@@ -35,4 +35,19 @@
 #define LAYER0              0
 #define LAYER1              1
 
+#define TILE_NONE           0x00
+#define TILE_BG0            0x01
+#define TILE_BG1            0x03
+#define TILE_BG2            0x04
+
+#define TILE_BORDER_LT      0x05
+#define TILE_BORDER_RT      0x06
+#define TILE_BORDER_LB      0x07
+#define TILE_BORDER_RB      0x08
+
+#define TILE_BORDER_TOP      0x09
+#define TILE_BORDER_RIGHT    0x0A
+#define TILE_BORDER_LEFT     0x0B
+#define TILE_BORDER_BOTTOM   0x0C
+
 #endif // _CONSTANTS_H
