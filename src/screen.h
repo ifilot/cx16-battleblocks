@@ -67,6 +67,16 @@ void screen_create_tiled_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 void screen_create_lined_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 
 /**
+ * @brief Clear rectangular area on layer1
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param w number of tiles width
+ * @param h number of tiles height
+ */
+void screen_clear_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
+
+/**
  * @brief Created lined background
  * 
  * @param x x-position
@@ -83,5 +93,14 @@ void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
  * @param tile_id Tile index to fill the layer with
  */
 extern void __fastcall__ screen_fill_layer(uint8_t layer, uint8_t tile_id);
+
+/**
+ * @brief Position a single tile on the screen for layer1
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param tile tile_id
+ */
+void screen_set_tile_layer1(uint8_t x, uint8_t y, uint8_t tile);
 
 #endif // _VIDEO_H

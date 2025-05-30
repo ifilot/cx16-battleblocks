@@ -50,4 +50,7 @@
 #define TILE_BORDER_LEFT     0x0B
 #define TILE_BORDER_BOTTOM   0x0C
 
+#define PLAYER1              0x00
+#define PLAYER2              0x01
+
 #endif // _CONSTANTS_H

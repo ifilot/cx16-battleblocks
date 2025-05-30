@@ -19,8 +19,12 @@
  **************************************************************************/
 
 #include "screen.h"
+#include "game.h"
 
 void main() {
+    static uint8_t keycode;
+    uint8_t idx;
+
     // initialize screen
     screen_init();
 
@@ -33,7 +37,15 @@ void main() {
 
     screen_create_background();
 
-    while(1) {
+    game_init();
 
+    while(1) {
+        // grab keycode
+        asm("jsr $FFE4");
+        asm("sta %v", keycode);
+
+        if(keycode != 0) {
+            game_step();
+        }
     }
  }

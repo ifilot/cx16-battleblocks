@@ -1,0 +1,30 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "make",
+      "options": {
+        "cwd": "${workspaceFolder}/src"
+      },
+      "problemMatcher": [],
+      "group": "build"
+    },
+    {
+      "label": "Run",
+      "type": "shell",
+      "command": "/mnt/c/Windows/System32/cmd.exe",
+      "args": [
+        "/c",
+        "\"D:\\PROGRAMMING\\CX16\\cx16-battleblocks\\src\\run.bat\""
+      ],
+      "problemMatcher": [],
+      "dependsOn": ["Build"],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

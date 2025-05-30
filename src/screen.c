@@ -83,6 +83,34 @@ void screen_create_background() {
 }
 
 /**
+ * @brief Clear rectangular area on layer1
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param w number of tiles width
+ * @param h number of tiles height
+ */
+void screen_clear_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+    uint8_t i,j;
+    uint8_t ctr = 0;
+    uint32_t map_base_addr;
+
+    for(i=0; i<h; i++) {
+        map_base_addr = MAPBASE1 + ((y + i) << 7) + (x << 1);
+        VERA.address = map_base_addr;
+        VERA.address_hi = map_base_addr >> 16;
+        VERA.address_hi |= (1 << 5);
+        for(j=0; j<w; j++) {
+            VERA.data0 = TILE_NONE;
+        }
+        ctr++;
+    }
+
+    // also create border
+    screen_create_border(x, y, w, h);
+}
+
+/**
  * @brief Created tiles background
  * 
  * @param x x-position
@@ -149,7 +177,7 @@ void screen_create_lined_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
  * @param h number of tiles height
  */
 void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
-    uint8_t i,j;
+    uint8_t i;
     uint8_t ctr = 0;
     uint32_t map_base_addr;
 
@@ -159,7 +187,7 @@ void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
     VERA.address_hi = map_base_addr >> 16;
     VERA.address_hi |= (2 << 4);
     VERA.data0 = TILE_BORDER_LT;
-    for(j=0; j<w; j++) {
+    for(i=0; i<w; i++) {
         VERA.data0 = TILE_BORDER_TOP;
     }
     VERA.data0 = TILE_BORDER_RT;
@@ -170,7 +198,7 @@ void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
     VERA.address_hi = map_base_addr >> 16;
     VERA.address_hi |= (2 << 4);
     VERA.data0 = TILE_BORDER_LB;
-    for(j=0; j<w; j++) {
+    for(i=0; i<w; i++) {
         VERA.data0 = TILE_BORDER_BOTTOM;
     }
     VERA.data0 = TILE_BORDER_RB;
@@ -180,7 +208,7 @@ void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
     VERA.address = map_base_addr;
     VERA.address_hi = map_base_addr >> 16;
     VERA.address_hi |= (8 << 4);
-    for(j=0; j<h; j++) {
+    for(i=0; i<h; i++) {
         VERA.data0 = TILE_BORDER_LEFT;
     }
 
@@ -189,7 +217,22 @@ void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
     VERA.address = map_base_addr;
     VERA.address_hi = map_base_addr >> 16;
     VERA.address_hi |= (8 << 4);
-    for(j=0; j<h; j++) {
+    for(i=0; i<h; i++) {
         VERA.data0 = TILE_BORDER_RIGHT;
     }
+}
+
+/**
+ * @brief Position a single tile on the screen for layer1
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param tile tile_id
+ */
+void screen_set_tile_layer1(uint8_t x, uint8_t y, uint8_t tile) {
+    uint32_t map_base_addr = MAPBASE1 + (y << 7) + (x << 1);
+    VERA.address = map_base_addr;
+    VERA.address_hi = map_base_addr >> 16;
+    VERA.address_hi |= 0b10000;
+    VERA.data0 = tile;
 }

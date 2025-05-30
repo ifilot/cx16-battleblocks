@@ -3,7 +3,7 @@ EMU=~/emulator-linux/x16emu
 
 make: BBLOCKS.PRG
 
-BBLOCKS.PRG: *.c *.s
+BBLOCKS.PRG: *.c *.s TILES.DAT
 	$(CC) -O -o BBLOCKS.PRG -t cx16 -C rom.cfg *.c *.s
 
 run: BBLOCKS.PRG TILES.DAT
