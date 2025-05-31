@@ -67,4 +67,9 @@
 #define MOVE_RIGHT          1
 #define MOVE_LEFT           -1
 
+#define GAME_STATE_RESET    0x00
+#define GAME_STATE_RUN      0x01
+#define GAME_STATE_LOST     0x02
+#define GAME_STATE_PAUSE    0x03
+
 #endif // _CONSTANTS_H

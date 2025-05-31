@@ -32,6 +32,9 @@ void game_init() {
     gs_player1.xoffset = 2;
     gs_player2.xoffset = 22;
 
+    gs_player1.state = GAME_STATE_RUN;
+    gs_player2.state = GAME_STATE_RUN;
+
     game_piece_new(&gs_player1);
     game_piece_new(&gs_player2);
 }
@@ -150,6 +153,7 @@ void game_piece_down(struct GameState* gamestate) {
         game_store_piece_playfield(gamestate);
         game_purge_rows(gamestate);
         game_piece_new(gamestate);
+        game_check_over(gamestate);
         return;
     }
 
@@ -338,7 +342,7 @@ void game_draw_block(struct GameState* gamestate) {
  */
 void game_step() {
     game_piece_down(&gs_player1);
-    game_piece_down(&gs_player2);
+    //game_piece_down(&gs_player2);
 }
 
 /**
@@ -460,4 +464,49 @@ uint8_t game_get_tick() {
     asm("jsr $FFDE");
     asm("sta %v", t);
     return t;
+}
+
+/**
+ * @brief Check whether game is over
+ * 
+ */
+void game_check_over(struct GameState* gamestate) {
+    uint8_t i;
+    uint8_t* ptr = &gamestate->playfield[20][0];
+
+    for(i=0; i<20; i++) {
+        if(*(ptr++) != 0xFF) {
+            gamestate->state = GAME_STATE_LOST;
+            game_loop_blockfill(gamestate);
+        }
+    }
+}
+
+uint8_t game_is_running() {
+    if(gs_player1.state == GAME_STATE_RUN) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/**
+ * @brief Play a small animation where the playing field gets filled with blocks
+ * 
+ * @param gamestate 
+ */
+void game_loop_blockfill(struct GameState* gamestate) {
+    uint8_t start, now;
+    uint8_t i,j;
+
+    for(j=0; j<20; j++) {
+        start = game_get_tick();
+        now = start;
+        while((now - start) < 1) {
+            now = game_get_tick();
+        }
+        for(i=0; i<10; ++i) {
+            screen_set_tile_layer1(gamestate->xoffset + i, 27 - j, 16);
+        }
+    }
 }

@@ -39,7 +39,7 @@ void main() {
 
     game_init();
 
-    while(1) {
+    while(game_is_running()) {
         start = game_get_tick();
         now = start;
 

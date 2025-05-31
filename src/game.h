@@ -22,6 +22,7 @@ struct GameState {
     uint8_t piece_rot_idx;
     uint8_t playfield[22][10];
     uint8_t xoffset;
+    uint8_t state;
 };
 
 /**
@@ -139,5 +140,15 @@ void game_parse_keyboard(uint8_t keycode);
  * @return uint8_t current tick
  */
 uint8_t game_get_tick();
+
+/**
+ * @brief Check whether game is over
+ * 
+ */
+void game_check_over(struct GameState* gamestate);
+
+void game_loop_blockfill(struct GameState* gamestate);
+
+uint8_t game_is_running();
 
 #endif
