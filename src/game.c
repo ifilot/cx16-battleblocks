@@ -28,6 +28,12 @@ void game_init() {
 
     memset(gs_player1.playfield, 0xFF, 22*10);
     memset(gs_player2.playfield, 0xFF, 22*10);
+
+    memset(gs_player1.piece_shadow, 22, 8);
+    memset(gs_player2.piece_shadow, 22, 8);
+
+    gs_player1.xoffset = 2;
+    gs_player2.xoffset = 22;
 }
 
 /**
@@ -58,6 +64,7 @@ void game_piece_new(struct GameState* gamestate) {
 
     // update the list of next pieces
     game_update_next_pieces(gamestate);
+    game_update_shadow(gamestate);
 }
 
 /**
@@ -164,6 +171,7 @@ void game_piece_move(struct GameState* gamestate, int8_t direction) {
         }
     }
 
+    // apply movement
     game_piece_apply_move(gamestate, direction, 0);
 }
 
@@ -190,19 +198,12 @@ void game_store_piece_playfield(struct GameState* gamestate) {
  * @param dy y-increment
  */
 void game_piece_apply_move(struct GameState* gamestate, int8_t dx, int8_t dy) {
-    uint8_t i, x, y;
+    uint8_t i;
     uint8_t xoffset = (gamestate->player == PLAYER1) ? 2 : 22;
     uint8_t tile_id = TYPE_TO_TILEID(gamestate->piece_type);
 
     // Step 1: Remove piece
-    for(i=0; i<4; ++i) {
-        y = gamestate->piece_position[i][1];
-        if(y > 19) {
-            continue;
-        }
-        x = gamestate->piece_position[i][0];
-        screen_set_tile_layer1(xoffset + x, 27 - y, TILE_NONE);
-    }
+    memcpy(&gamestate->piece_old_position[0][0], &gamestate->piece_position[0][0], 8);
 
     // Step 2: Apply movement
     for(i=0; i<4; ++i) {
@@ -210,15 +211,9 @@ void game_piece_apply_move(struct GameState* gamestate, int8_t dx, int8_t dy) {
         gamestate->piece_position[i][1] += dy;
     }
 
-    // Step 3: Draw new positions
-    for(i=0; i<4; ++i) {
-        y = gamestate->piece_position[i][1];
-        if(y > 19) {
-            continue;
-        }
-        x = gamestate->piece_position[i][0];
-        screen_set_tile_layer1(xoffset + x, 27 - y, tile_id);
-    }
+    // perform shadow check and draw block
+    game_update_shadow(gamestate);
+    game_draw_block(gamestate);
 }
 
 /**
@@ -228,7 +223,7 @@ void game_piece_apply_move(struct GameState* gamestate, int8_t dx, int8_t dy) {
  */
 void game_piece_rotate(struct GameState* gamestate) {
     int8_t new_coords[4][2];
-    uint8_t i,x,y;
+    uint8_t i;
     uint8_t type = gamestate->piece_type;
     uint8_t rot_id = gamestate->piece_rot_idx;
     uint8_t xoffset = (gamestate->player == PLAYER1) ? 2 : 22;
@@ -255,11 +250,8 @@ void game_piece_rotate(struct GameState* gamestate) {
         }
     }
 
-    // Step 3: No interference detected, remove current piece
-    for(i=0; i<4; ++i) {
-        screen_set_tile_layer1(xoffset + gamestate->piece_position[i][0], 
-                               27 - gamestate->piece_position[i][1], TILE_NONE);
-    }
+    // Step 3: Set old position (to be removed)
+    memcpy(&gamestate->piece_old_position[0][0], &gamestate->piece_position[0][0], 8);
 
     // Step 4: Update gamepieces
     tile_id = TYPE_TO_TILEID(gamestate->piece_type);
@@ -269,14 +261,54 @@ void game_piece_rotate(struct GameState* gamestate) {
     }
     gamestate->piece_rot_idx = (gamestate->piece_rot_idx+1) & 0x03;
 
-    // Step 5: Draw new positions
+    // perform shadow check and draw block
+    game_update_shadow(gamestate);
+    game_draw_block(gamestate);
+}
+
+/**
+ * @brief Draw the active blocks (both shadow and regular)
+ * 
+ * @param gamestate 
+ */
+void game_draw_block(struct GameState* gamestate) {
+    uint8_t i,x,y;
+
+    // remove old blocks
+    for(i=0; i<4; ++i) {
+        y = gamestate->piece_old_shadow[i][1];
+        if(y > 19) {
+            continue;
+        }
+        x = gamestate->piece_old_shadow[i][0];
+        screen_set_tile_layer1(gamestate->xoffset + x, 27 - y, TILE_NONE);
+
+        y = gamestate->piece_old_position[i][1];
+        if(y > 19) {
+            continue;
+        }
+        x = gamestate->piece_old_position[i][0];
+        screen_set_tile_layer1(gamestate->xoffset + x, 27 - y, TILE_NONE);
+    }
+
+    // first draw shadow block
+    for(i=0; i<4; ++i) {
+        y = gamestate->piece_shadow[i][1];
+        if(y > 19) {
+            continue;
+        }
+        x = gamestate->piece_shadow[i][0];
+        screen_set_tile_layer1(gamestate->xoffset + x, 27 - y, TILE_SHADOW);
+    }
+
+    // then regular block
     for(i=0; i<4; ++i) {
         y = gamestate->piece_position[i][1];
         if(y > 19) {
             continue;
         }
         x = gamestate->piece_position[i][0];
-        screen_set_tile_layer1(xoffset + x, 27 - y, tile_id);
+        screen_set_tile_layer1(gamestate->xoffset + x, 27 - y, TYPE_TO_TILEID(gamestate->piece_type));
     }
 }
 
@@ -322,6 +354,54 @@ void game_purge_rows(struct GameState* gamestate) {
     if(update == 1) {
         screen_clear_rectangle(xoffset, 8, 10, 20);
         screen_redraw_playfield(xoffset, &gamestate->playfield[0][0]);
+    }
+}
+
+/**
+ * @brief Show drop ouline
+ * 
+ */
+void game_update_shadow(struct GameState* gamestate) {
+    uint8_t i,j,clear;
+    uint8_t piece[4][2];
+    uint8_t min = 20;
+    uint8_t xoffset = (gamestate->player == PLAYER1) ? 2 : 22;
+
+    // find minimum height of current piece
+    for(i=0; i<4; i++) {
+        if(gamestate->piece_position[i][1] < min) {
+            min = gamestate->piece_position[i][1];
+        }
+    }
+
+    // calculate block coordinates with lowest block at zero
+    for(i=0; i<4; i++) {
+        piece[i][0] = gamestate->piece_position[i][0];
+        piece[i][1] = gamestate->piece_position[i][1] - min;
+    }
+
+    // find lowest position piece can be placed
+    for(j=0; j<20; j++) {
+        clear = 1;
+        for(i=0; i<4; i++) {
+            if(gamestate->playfield[j+piece[i][1]][piece[i][0]] != 0xFF) {
+                clear = 0;
+                break;
+            }
+        }
+
+        if(clear == 1) {
+            // copy current position to old shadow position
+            memcpy(&gamestate->piece_old_shadow[0][0], &gamestate->piece_shadow[0][0], 8);
+
+            // store new shadow
+            for(i=0; i<4; i++) {
+                gamestate->piece_shadow[i][0] = piece[i][0];
+                gamestate->piece_shadow[i][1] = j + piece[i][1];
+            }
+
+            return;
+        }
     }
 }
 

@@ -61,6 +61,8 @@
 #define KEYCODE_SPACE       0x20
 #define KEYCODE_ESCAPE      0x1B
 
+#define TILE_SHADOW         23
+
 #define MOVE_RIGHT          1
 #define MOVE_LEFT           -1
 

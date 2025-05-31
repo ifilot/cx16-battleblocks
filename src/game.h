@@ -13,11 +13,15 @@
 
 struct GameState {
     uint8_t player;
+    uint8_t piece_old_position[4][2];
     uint8_t piece_position[4][2];
+    uint8_t piece_old_shadow[4][2];
+    uint8_t piece_shadow[4][2];
     struct PieceList piece_list;
     uint8_t piece_type;
     uint8_t piece_rot_idx;
     uint8_t playfield[22][10];
+    uint8_t xoffset;
 };
 
 /**
@@ -96,11 +100,24 @@ void game_piece_rotate(struct GameState* gamestate);
 void game_step();
 
 /**
+ * @brief Draw the active blocks (both shadow and regular)
+ * 
+ * @param gamestate 
+ */
+void game_draw_block(struct GameState* gamestate);
+
+/**
  * @brief Check whether any rows need purging and remove
  *        them from the game. Drop all rows above this row.
  * 
  */
 void game_purge_rows(struct GameState* gamestate);
+
+/**
+ * @brief Show drop ouline
+ * 
+ */
+void game_update_shadow(struct GameState* gamestate);
 
 /**
  * @brief Parse keyboard input for the game
