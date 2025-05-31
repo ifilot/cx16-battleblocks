@@ -23,6 +23,7 @@
 
 void main() {
     static uint8_t keycode;
+    uint8_t start, now;
 
     // initialize screen
     screen_init();
@@ -39,8 +40,16 @@ void main() {
     game_init();
 
     while(1) {
-        asm("jsr $FFE4");
-        asm("sta %v", keycode);
-        game_parse_keyboard(keycode);
+        start = game_get_tick();
+        now = start;
+
+        while((now - start) < 49) {
+            asm("jsr $FFE4");
+            asm("sta %v", keycode);
+            game_parse_keyboard(keycode);
+            now = game_get_tick();
+        }
+
+        game_step();
     }
  }

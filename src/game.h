@@ -133,4 +133,11 @@ void game_update_shadow(struct GameState* gamestate);
  */
 void game_parse_keyboard(uint8_t keycode);
 
+/**
+ * @brief Get the current tick
+ * 
+ * @return uint8_t current tick
+ */
+uint8_t game_get_tick();
+
 #endif

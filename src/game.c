@@ -449,3 +449,15 @@ void game_parse_keyboard(uint8_t keycode) {
         break;
     }
 }
+
+/**
+ * @brief Get the current tick
+ * 
+ * @return uint8_t current tick
+ */
+uint8_t game_get_tick() {
+    static uint8_t t;
+    asm("jsr $FFDE");
+    asm("sta %v", t);
+    return t;
+}
