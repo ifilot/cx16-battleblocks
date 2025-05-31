@@ -120,7 +120,7 @@ void game_piece_down(struct GameState* gamestate) {
     uint8_t i;
     uint8_t x,y;
     uint8_t xoffset = gamestate->player == PLAYER1 ? 2 : 22;
-    uint8_t tile_id = 13 + gamestate->piece_type;
+    uint8_t tile_id = TYPE_TO_TILEID(gamestate->piece_type);
     uint8_t place_piece = 0;
 
     // check whether a movement down results in piece placement
@@ -262,7 +262,7 @@ void game_piece_rotate(struct GameState* gamestate) {
     }
 
     // Step 4: Update gamepieces
-    tile_id = 13 + gamestate->piece_type;
+    tile_id = TYPE_TO_TILEID(gamestate->piece_type);
     for(i=0; i<4; ++i) {
         gamestate->piece_position[i][0] = new_coords[i][0];
         gamestate->piece_position[i][1] = new_coords[i][1];

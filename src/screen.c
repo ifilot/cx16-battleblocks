@@ -256,7 +256,7 @@ void screen_redraw_playfield(uint8_t x, uint8_t* playfield) {
         
         for(j=0; j<10; j++) {
             tile_id = *(playfield++);
-            VERA.data0 = (tile_id != 0xFF) ? (tile_id + 13) : TILE_NONE;
+            VERA.data0 = (tile_id != 0xFF) ? (tile_id + 16) : TILE_NONE;
         }
     }
 }

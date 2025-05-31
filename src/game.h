@@ -9,7 +9,7 @@
 #include "screen.h"
 #include "constants.h"
 
-#define TYPE_TO_TILEID(type) (13 + (type))
+#define TYPE_TO_TILEID(type) (16 + (type))
 
 struct GameState {
     uint8_t player;
