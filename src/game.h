@@ -16,6 +16,7 @@ struct GameState {
     uint8_t piece_position[4][2];
     struct PieceList piece_list;
     uint8_t piece_type;
+    uint8_t piece_rot_idx;
     uint8_t playfield[22][10];
 };
 
@@ -80,6 +81,13 @@ void game_store_piece_playfield(struct GameState* gamestate);
  * @param dy y-increment
  */
 void game_piece_apply_move(struct GameState* gamestate, int8_t dx, int8_t dy);
+
+/**
+ * @brief Try to move a piece left or right
+ * 
+ * @param gamestate player GameState
+ */
+void game_piece_rotate(struct GameState* gamestate);
 
 /**
  * @brief Increment the game by one tick
