@@ -94,6 +94,13 @@ void game_piece_apply_move(struct GameState* gamestate, int8_t dx, int8_t dy);
 void game_piece_rotate(struct GameState* gamestate);
 
 /**
+ * @brief Drop the current piece
+ * 
+ * @param gamestate player GameState
+ */
+void game_piece_drop(struct GameState* gamestate);
+
+/**
  * @brief Increment the game by one tick
  * 
  */

@@ -60,6 +60,7 @@
 #define KEYCODE_RETURN      0x0D
 #define KEYCODE_SPACE       0x20
 #define KEYCODE_ESCAPE      0x1B
+#define KEYCODE_0           0x30
 
 #define TILE_SHADOW         23
 

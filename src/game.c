@@ -23,9 +23,6 @@ void game_init() {
     bos_generate(&gs_player2.piece_list.bag1);
     bos_generate(&gs_player2.piece_list.bag2);
 
-    game_piece_new(&gs_player1);
-    game_piece_new(&gs_player2);
-
     memset(gs_player1.playfield, 0xFF, 22*10);
     memset(gs_player2.playfield, 0xFF, 22*10);
 
@@ -34,6 +31,9 @@ void game_init() {
 
     gs_player1.xoffset = 2;
     gs_player2.xoffset = 22;
+
+    game_piece_new(&gs_player1);
+    game_piece_new(&gs_player2);
 }
 
 /**
@@ -52,7 +52,7 @@ void game_piece_new(struct GameState* gamestate) {
     // set the new moving piece position
     for(i=0; i<4; ++i) {
         gamestate->piece_position[i][0] = 4 + pieces_start_table[type][i][0];
-        gamestate->piece_position[i][1] = 21 - pieces_start_table[type][i][1];
+        gamestate->piece_position[i][1] = 20 - pieces_start_table[type][i][1];
     }
 
     // update the bag state
@@ -62,9 +62,15 @@ void game_piece_new(struct GameState* gamestate) {
         gamestate->piece_list.bag1.idx = 0;
     }
 
+    // reset placeholders
+    memset(gamestate->piece_shadow, 22, 8);
+    memset(gamestate->piece_old_shadow, 22, 8);
+    memset(gamestate->piece_old_position, 22, 8);
+
     // update the list of next pieces
     game_update_next_pieces(gamestate);
     game_update_shadow(gamestate);
+    game_draw_block(gamestate);
 }
 
 /**
@@ -267,6 +273,20 @@ void game_piece_rotate(struct GameState* gamestate) {
 }
 
 /**
+ * @brief Drop the current piece
+ * 
+ * @param gamestate player GameState
+ */
+void game_piece_drop(struct GameState* gamestate) {
+    memcpy(&gamestate->piece_old_position[0][0], &gamestate->piece_position[0][0], 8);
+    memcpy(&gamestate->piece_position[0][0], &gamestate->piece_shadow[0][0], 8);
+    game_draw_block(gamestate);
+    game_store_piece_playfield(gamestate);
+    game_purge_rows(gamestate);
+    game_piece_new(gamestate);
+}
+
+/**
  * @brief Draw the active blocks (both shadow and regular)
  * 
  * @param gamestate 
@@ -423,6 +443,9 @@ void game_parse_keyboard(uint8_t keycode) {
         break;
         case KEYCODE_RIGHT:
             game_piece_move(&gs_player1, MOVE_RIGHT);
+        break;
+        case KEYCODE_0:
+            game_piece_drop(&gs_player1);
         break;
     }
 }
