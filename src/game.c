@@ -135,6 +135,7 @@ void game_piece_down(struct GameState* gamestate) {
 
     if(place_piece == 1) {
         game_store_piece_playfield(gamestate);
+        game_purge_rows(gamestate);
         game_piece_new(gamestate);
         return;
     }
@@ -240,7 +241,7 @@ void game_piece_rotate(struct GameState* gamestate) {
         if(new_coords[i][0] < 0 || new_coords[i][0] > 9) {
             return;
         }
-        new_coords[i][1] = gamestate->piece_position[i][1] + piece_rotation_table[type][rot_id][i][1];
+        new_coords[i][1] = gamestate->piece_position[i][1] - piece_rotation_table[type][rot_id][i][1];
         if(new_coords[i][1] < 0) {
             return;
         }
@@ -286,6 +287,42 @@ void game_piece_rotate(struct GameState* gamestate) {
 void game_step() {
     game_piece_down(&gs_player1);
     game_piece_down(&gs_player2);
+}
+
+/**
+ * @brief Check whether any rows need purging and remove
+ *        them from the game. Drop all rows above this row.
+ * 
+ */
+void game_purge_rows(struct GameState* gamestate) {
+    int8_t i;
+    uint8_t j;
+    uint8_t full;
+    uint8_t update = 0;
+    uint8_t xoffset = (gamestate->player == PLAYER1) ? 2 : 22;
+
+    // update playing field
+    for(i=19; i>=0; --i) {
+        full = 1;
+        for(j=0; j<10; ++j) {
+            if(gamestate->playfield[i][j] == 0xFF) {
+                full = 0;
+                //break;
+            }
+        }
+
+        if(full == 1 && i < 19) {
+            memcpy(&gamestate->playfield[i][0], &gamestate->playfield[i+1][0], (19-i) * 10);
+            memset(&gamestate->playfield[19][0], 0xFF, 10);
+            update = 1;
+        }
+    }
+
+    // redraw playing field
+    if(update == 1) {
+        screen_clear_rectangle(xoffset, 8, 10, 20);
+        screen_redraw_playfield(xoffset, &gamestate->playfield[0][0]);
+    }
 }
 
 /**

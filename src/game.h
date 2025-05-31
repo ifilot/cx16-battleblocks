@@ -96,6 +96,13 @@ void game_piece_rotate(struct GameState* gamestate);
 void game_step();
 
 /**
+ * @brief Check whether any rows need purging and remove
+ *        them from the game. Drop all rows above this row.
+ * 
+ */
+void game_purge_rows(struct GameState* gamestate);
+
+/**
  * @brief Parse keyboard input for the game
  * 
  * @param keycode keyboard input keycode

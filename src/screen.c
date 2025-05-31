@@ -236,3 +236,27 @@ void screen_set_tile_layer1(uint8_t x, uint8_t y, uint8_t tile) {
     VERA.address_hi |= 0b10000;
     VERA.data0 = tile;
 }
+
+/**
+ * @brief Redraw the playing field based on array
+ * 
+ * @param x 
+ * @param playfield 
+ */
+void screen_redraw_playfield(uint8_t x, uint8_t* playfield) {
+    uint8_t i,j;
+    uint32_t map_base_addr;
+    uint8_t tile_id;
+
+    for(i=0; i<20; i++) {
+        map_base_addr= MAPBASE1 + (8 + (19-i) << 7) + (x << 1);
+        VERA.address = map_base_addr;
+        VERA.address_hi = map_base_addr >> 16;
+        VERA.address_hi |= (1 << 5);    // increment by 2
+        
+        for(j=0; j<10; j++) {
+            tile_id = *(playfield++);
+            VERA.data0 = (tile_id != 0xFF) ? (tile_id + 13) : TILE_NONE;
+        }
+    }
+}

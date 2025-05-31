@@ -103,4 +103,12 @@ extern void __fastcall__ screen_fill_layer(uint8_t layer, uint8_t tile_id);
  */
 void screen_set_tile_layer1(uint8_t x, uint8_t y, uint8_t tile);
 
+/**
+ * @brief Redraw the playing field based on array
+ * 
+ * @param x 
+ * @param playfield 
+ */
+void screen_redraw_playfield(uint8_t x, uint8_t* playfield);
+
 #endif // _VIDEO_H
