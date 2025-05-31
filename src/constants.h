@@ -53,4 +53,15 @@
 #define PLAYER1              0x00
 #define PLAYER2              0x01
 
+#define KEYCODE_DOWN        0x11
+#define KEYCODE_UP          0x91
+#define KEYCODE_LEFT        0x9D
+#define KEYCODE_RIGHT       0x1D
+#define KEYCODE_RETURN      0x0D
+#define KEYCODE_SPACE       0x20
+#define KEYCODE_ESCAPE      0x1B
+
+#define MOVE_RIGHT          1
+#define MOVE_LEFT           -1
+
 #endif // _CONSTANTS_H
