@@ -4,26 +4,14 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "ai.h"
+#include "gamestate.h"
 #include "pieces.h"
 #include "bagofseven.h"
 #include "screen.h"
 #include "constants.h"
 
 #define TYPE_TO_TILEID(type) (16 + (type))
-
-struct GameState {
-    uint8_t player;
-    uint8_t piece_old_position[4][2];
-    uint8_t piece_position[4][2];
-    uint8_t piece_old_shadow[4][2];
-    uint8_t piece_shadow[4][2];
-    struct PieceList piece_list;
-    uint8_t piece_type;
-    uint8_t piece_rot_idx;
-    uint8_t playfield[22][10];
-    uint8_t xoffset;
-    uint8_t state;
-};
 
 /**
  * @brief Initialize the game
@@ -147,8 +135,18 @@ uint8_t game_get_tick();
  */
 void game_check_over(struct GameState* gamestate);
 
+/**
+ * @brief Play a small animation where the playing field gets filled with blocks
+ * 
+ * @param gamestate 
+ */
 void game_loop_blockfill(struct GameState* gamestate);
 
+/**
+ * @brief Check whether game is still running
+ * 
+ * @return uint8_t 1 if still running, 0 otherwise
+ */
 uint8_t game_is_running();
 
 #endif

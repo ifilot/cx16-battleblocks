@@ -74,6 +74,10 @@ void game_piece_new(struct GameState* gamestate) {
     game_update_next_pieces(gamestate);
     game_update_shadow(gamestate);
     game_draw_block(gamestate);
+
+    if(gamestate->player == PLAYER2) {
+        ai_prepare(gamestate, &pfeval);
+    }
 }
 
 /**
@@ -342,7 +346,7 @@ void game_draw_block(struct GameState* gamestate) {
  */
 void game_step() {
     game_piece_down(&gs_player1);
-    //game_piece_down(&gs_player2);
+    game_piece_down(&gs_player2);
 }
 
 /**
@@ -386,7 +390,8 @@ void game_purge_rows(struct GameState* gamestate) {
  * 
  */
 void game_update_shadow(struct GameState* gamestate) {
-    uint8_t i,j,clear;
+    uint8_t i,hit;
+    int8_t row;
     uint8_t piece[4][2];
     uint8_t min = 20;
     uint8_t xoffset = (gamestate->player == PLAYER1) ? 2 : 22;
@@ -405,23 +410,27 @@ void game_update_shadow(struct GameState* gamestate) {
     }
 
     // find lowest position piece can be placed
-    for(j=0; j<20; j++) {
-        clear = 1;
+    for(row=19; row>=0; row--) {
+        hit = 0;
         for(i=0; i<4; i++) {
-            if(gamestate->playfield[j+piece[i][1]][piece[i][0]] != 0xFF) {
-                clear = 0;
+            if(gamestate->playfield[row+piece[i][1]][piece[i][0]] != 0xFF) {
+                hit = 1;
                 break;
             }
         }
 
-        if(clear == 1) {
+        if(hit == 1 || row == 0) {
+            if(hit == 1) {
+                row++;
+            }
+
             // copy current position to old shadow position
             memcpy(&gamestate->piece_old_shadow[0][0], &gamestate->piece_shadow[0][0], 8);
 
             // store new shadow
             for(i=0; i<4; i++) {
                 gamestate->piece_shadow[i][0] = piece[i][0];
-                gamestate->piece_shadow[i][1] = j + piece[i][1];
+                gamestate->piece_shadow[i][1] = row + piece[i][1];
             }
 
             return;
@@ -482,14 +491,6 @@ void game_check_over(struct GameState* gamestate) {
     }
 }
 
-uint8_t game_is_running() {
-    if(gs_player1.state == GAME_STATE_RUN) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
 /**
  * @brief Play a small animation where the playing field gets filled with blocks
  * 
@@ -506,7 +507,20 @@ void game_loop_blockfill(struct GameState* gamestate) {
             now = game_get_tick();
         }
         for(i=0; i<10; ++i) {
-            screen_set_tile_layer1(gamestate->xoffset + i, 27 - j, 16);
+            screen_set_tile_layer1(gamestate->xoffset + i, 27 - j, TILE_ENDGAME);
         }
+    }
+}
+
+/**
+ * @brief Check whether game is still running
+ * 
+ * @return uint8_t 1 if still running, 0 otherwise
+ */
+uint8_t game_is_running() {
+    if(gs_player1.state == GAME_STATE_RUN) {
+        return 1;
+    } else {
+        return 0;
     }
 }

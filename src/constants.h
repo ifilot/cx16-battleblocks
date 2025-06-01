@@ -50,6 +50,8 @@
 #define TILE_BORDER_LEFT     0x0B
 #define TILE_BORDER_BOTTOM   0x0C
 
+#define TILE_ENDGAME         0x2B
+
 #define PLAYER1              0x00
 #define PLAYER2              0x01
 
@@ -71,5 +73,11 @@
 #define GAME_STATE_RUN      0x01
 #define GAME_STATE_LOST     0x02
 #define GAME_STATE_PAUSE    0x03
+
+#define AI_NONE             0x00
+#define AI_MOVEMENT_LEFT    0x01
+#define AI_MOVEMENT_RIGHT   0x02
+#define AI_MOVEMENT_DOWN    0x03
+#define AI_ROTATE           0x04
 
 #endif // _CONSTANTS_H

@@ -18,12 +18,16 @@
  *                                                                        *
  **************************************************************************/
 
+#include <stdio.h>
 #include "screen.h"
 #include "game.h"
+#include "ai.h"
 
 void main() {
     static uint8_t keycode;
     uint8_t start, now;
+    uint8_t startcpu;
+    uint8_t mov;
 
     // initialize screen
     screen_init();
@@ -39,6 +43,10 @@ void main() {
 
     game_init();
 
+    printf("\n");
+
+    startcpu = game_get_tick();
+
     while(game_is_running()) {
         start = game_get_tick();
         now = start;
@@ -47,6 +55,28 @@ void main() {
             asm("jsr $FFE4");
             asm("sta %v", keycode);
             game_parse_keyboard(keycode);
+
+            if(ai_calculate_next_score(&gs_player2, &pfeval) == 1) {
+                if((now - startcpu) > 30) {
+                    mov = ai_determine_movement(&gs_player2, &pfeval);
+                    switch(mov) {
+                        case AI_MOVEMENT_LEFT:
+                            game_piece_move(&gs_player2, -1);
+                        break;
+                        case AI_MOVEMENT_RIGHT:
+                            game_piece_move(&gs_player2, 1);
+                        break;
+                        case AI_ROTATE:
+                            game_piece_rotate(&gs_player2);
+                        break;
+                        case AI_MOVEMENT_DOWN:
+                            game_piece_down(&gs_player2);
+                        break;
+                    }
+                    startcpu = game_get_tick();
+                }
+            }
+
             now = game_get_tick();
         }
 
