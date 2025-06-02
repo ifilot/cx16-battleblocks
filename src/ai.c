@@ -116,7 +116,10 @@ uint8_t ai_calculate_next_score(struct GameState* gamestate,
 /**
  * @brief Evaluate the weight function given a playfield
  * 
- * Parameters have been obtained from: https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/
+ * Initial parameters have been obtained from: https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/,
+ * but have been tweaked for optimal performance in this game. Specifically, in constrast to the original implementation,
+ * creation of holes has been significantly penalized.
+ * 
  * Note that full floating point arithmetic would be too costly for this system, so integer-based evaluation is
  * used. Still, integer-based multiplication is relatively expensive, so we opted for using bitshifts + regular
  * addition. We use approximately 2-3 digits of precision for the weights. 1 digit of precision was tested, but this
@@ -132,18 +135,44 @@ uint32_t ai_calculate_playfield_score(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFI
     uint16_t bumpiness = ai_calculate_bumpiness(heights_cache);
     uint16_t full_lines = ai_calculate_full_lines(playfield, heights_cache);
     uint16_t holes = ai_calculate_holes(playfield, heights_cache);
+    uint16_t tmp;
 
     // height * 510 ~= (height << 9) - (height << 1)
     score += (height << 9) - (height << 1);
 
-    // holes * 357 ~= (holes << 8) + (holes << 6) + (holes << 5) + (holes << 2) + holes
-    score += (holes << 8) + (holes << 6) + (holes << 5) + (holes << 2) + holes;
+    // holes * 357 ≈ 4 + 32 + 64 + 256 + 512 + 1 = 869
+    tmp = holes << 2;          // holes * 4
+    score += tmp;
+    tmp <<= 3;                 // * 32
+    score += tmp;
+    tmp <<= 1;                 // * 64
+    score += tmp;
+    tmp <<= 2;                 // * 256
+    score += tmp;
+    tmp <<= 1;                 // * 512
+    score += tmp;
+    score += holes;            // +1
 
-    // bumpiness * 184 ~= (bumpiness << 7) + (bumpiness << 5) + (bumpiness << 4) + (bumpiness << 3)
-    score += (bumpiness << 7) + (bumpiness << 5) + (bumpiness << 4) + (bumpiness << 3);
+    // bumpiness * 184 ≈ 8 + 16 + 32 + 128 = 184
+    tmp = bumpiness << 3;      // * 8
+    score += tmp;
+    tmp <<= 1;                 // * 16
+    score += tmp;
+    tmp <<= 1;                 // * 32
+    score += tmp;
+    tmp <<= 2;                 // * 128
+    score += tmp;
 
-    // full_lines * 761 ~= (full_lines << 9) + (full_lines << 8) - (full_lines << 2) - (full_lines << 1) - full_lines
-    score -= (full_lines << 9) + (full_lines << 8) - (full_lines << 2) - (full_lines << 1) - full_lines;
+    // full_lines * 761 ≈ 512 + 256 - 4 - 2 - 1 = 761
+    tmp = full_lines << 9;     // * 512
+    score -= tmp;
+    tmp = full_lines << 8;     // * 256
+    score -= tmp;
+    tmp = full_lines << 2;     // * 4
+    score += tmp;
+    tmp = full_lines << 1;     // * 2
+    score += tmp;
+    score += full_lines;       // * 1
 
     return score;
 }
