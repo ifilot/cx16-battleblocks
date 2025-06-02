@@ -140,7 +140,7 @@ uint32_t ai_calculate_playfield_score(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFI
     // height * 510 ~= (height << 9) - (height << 1)
     score += (height << 9) - (height << 1);
 
-    // holes * 357 ≈ 4 + 32 + 64 + 256 + 512 + 1 = 869
+    // holes * 357 ~= 4 + 32 + 64 + 256 + 512 + 1 = 869
     tmp = holes << 2;          // holes * 4
     score += tmp;
     tmp <<= 3;                 // * 32
@@ -153,7 +153,7 @@ uint32_t ai_calculate_playfield_score(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFI
     score += tmp;
     score += holes;            // +1
 
-    // bumpiness * 184 ≈ 8 + 16 + 32 + 128 = 184
+    // bumpiness * 184 ~= 8 + 16 + 32 + 128 = 184
     tmp = bumpiness << 3;      // * 8
     score += tmp;
     tmp <<= 1;                 // * 16
@@ -163,16 +163,17 @@ uint32_t ai_calculate_playfield_score(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFI
     tmp <<= 2;                 // * 128
     score += tmp;
 
-    // full_lines * 761 ≈ 512 + 256 - 4 - 2 - 1 = 761
-    tmp = full_lines << 9;     // * 512
-    score -= tmp;
-    tmp = full_lines << 8;     // * 256
-    score -= tmp;
-    tmp = full_lines << 2;     // * 4
+    // full_lines * 761 ~= 512 + 256 - 4 - 2 - 1 = 761
+    tmp = full_lines;           // * 1
+    tmp <<= 1;                  // * 2
     score += tmp;
-    tmp = full_lines << 1;     // * 2
+    tmp <<= 1;                  // * 4
     score += tmp;
-    score += full_lines;       // * 1
+    tmp <<= 6;                  // * 256
+    score -= tmp;
+    tmp <<= 1;                  // * 512
+    score -= tmp;
+    score += full_lines;
 
     return score;
 }
@@ -199,16 +200,29 @@ uint8_t ai_calculate_height(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFIELD_WIDTH]
     return height;
 }
 
-uint8_t ai_calculate_bumpiness(uint8_t heights[PLAYFIELD_WIDTH]) {
+/**
+ * @brief Calculate bumpiness factor; penalize high amout of bumpiness to penalize wells.
+ *
+ * Note that this (non-linear) penalization of bumpiness is critical in getting a stable
+ * AI. Implementations without this type of penalization resulted in formation of large
+ * wells, which accumulate over time. Some solutions have an explicit "well-term" to
+ * combat this, but this implementation with a look-up table is more cost-effective.
+ * 
+ * @param heights 
+ * @return uint16_t 
+ */
+uint16_t ai_calculate_bumpiness(uint8_t heights[PLAYFIELD_WIDTH]) {
     uint8_t i;
-    uint8_t bumpiness = 0;
+    uint16_t bumpiness = 0;
+    const uint16_t bumpweights[] = {0, 1, 2, 3, 4, 8, 16, 32, 64, 75, 100, 125};
 
     for (i = 0; i < 9; i++) {
         int16_t diff = (int16_t)heights[i] - (int16_t)heights[i + 1];
+        // take absolute value
         if (diff < 0) {
             diff = -diff;
         }
-        bumpiness += (uint8_t)diff;
+        bumpiness += bumpweights[diff];
     }
 
     return bumpiness;

@@ -29,7 +29,7 @@ uint32_t ai_calculate_playfield_score(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFI
 uint8_t ai_calculate_height(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFIELD_WIDTH], 
                             uint8_t heights_cache[PLAYFIELD_WIDTH]);
 
-uint8_t ai_calculate_bumpiness(uint8_t heights[PLAYFIELD_WIDTH]);
+uint16_t ai_calculate_bumpiness(uint8_t heights[PLAYFIELD_WIDTH]);
 
 uint8_t ai_calculate_full_lines(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFIELD_WIDTH], 
                                 uint8_t heights[PLAYFIELD_WIDTH]);
