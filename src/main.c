@@ -41,6 +41,7 @@ void main() {
 
     screen_create_background();
     screen_create_scorebox();
+    screen_draw_next_boxes();
 
     game_init();
 

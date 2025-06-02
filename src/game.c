@@ -92,35 +92,14 @@ void game_piece_new(struct GameState* gamestate) {
  * @param gamestate player GameState
  */
 void game_update_next_pieces(struct GameState* gamestate) {
-    uint8_t pieces[4];
-    uint8_t i;
-    uint8_t idx;
     uint8_t xoffset = gamestate->player == PLAYER1 ? 14 : 34;
     struct PieceList *pl = &gamestate->piece_list;
 
     // clear all upcoming piece boxes
-    screen_clear_rectangle(xoffset, 8, 4, 4);
-    screen_clear_rectangle(xoffset, 14, 4, 12);
+    screen_clear_rectangle(xoffset, 10, 4, 3);
 
-    // extract all new pieces from bags
-    for(i=0; i<4; ++i) {
-        idx = pl->bag1.idx + i;
-        if(idx >= 7) {
-            idx = pl->bag2.idx + i;
-            pieces[i] = pl->bag2.pieces[idx];
-        } else {
-            pieces[i] = pl->bag1.pieces[idx];
-        }
-    }
-
-    // position these new pieces in the boxes
-    for(i=0; i<4; ++i) {
-        if(i == 0) {
-            game_place_piece(xoffset, 9, pieces[i]);
-        } else {
-            game_place_piece(xoffset, 11 + (i << 2), pieces[i]);
-        }
-    }
+    // draw piece
+    game_place_piece(xoffset, 10, pl->bag1.pieces[pl->bag1.idx]);
 }
 
 /**
@@ -131,9 +110,19 @@ void game_update_next_pieces(struct GameState* gamestate) {
  * @param type piece type
  */
 void game_place_piece(uint8_t x, uint8_t y, uint8_t type) {
-    uint8_t i;
-    for(i=0; i<4; i++) {
-        screen_set_tile_layer1(x + pieces_start_table[type][i][0], y + pieces_start_table[type][i][1], TYPE_TO_TILEID(type));
+    uint8_t i,j;
+    uint32_t map_base_addr = MAPBASE1 + (y << 7) + (x << 1);
+    const uint8_t* ptr = &piece_next_drawing_table[type][0];
+
+    for(i=0; i<3; i++) {
+        map_base_addr = MAPBASE1 + ((y+i) << 7) + (x << 1);
+        VERA.address = map_base_addr;
+        VERA.address_hi = map_base_addr >> 16;
+        VERA.address_hi |= (1 << 5);
+
+        for(j=0; j<4; j++) {
+            VERA.data0 = *(ptr++);
+        }
     }
 }
 

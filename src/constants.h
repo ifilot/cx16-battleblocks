@@ -37,8 +37,8 @@
 
 #define TILE_NONE           0x00
 #define TILE_BG0            0x01
-#define TILE_BG1            0x03
-#define TILE_BG2            0x04
+#define TILE_BG1            0x02
+#define TILE_BG2            0x03
 
 #define TILE_BORDER_LT      0x05
 #define TILE_BORDER_RT      0x06

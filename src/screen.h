@@ -53,6 +53,12 @@ void screen_create_background();
 void screen_create_scorebox();
 
 /**
+ * @brief Draw "next piece" boxes
+ * 
+ */
+void screen_draw_next_boxes();
+
+/**
  * @brief Created tiled background
  * 
  * @param x x-position

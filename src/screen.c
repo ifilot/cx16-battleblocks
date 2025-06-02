@@ -72,14 +72,6 @@ void screen_create_background() {
     //score boxes
     screen_create_lined_rectangle(2, 2, 16, 3);
     screen_create_lined_rectangle(22, 2, 16, 3);
-
-    // next piece box
-    screen_create_tiled_rectangle(14, 8, 4, 4);
-    screen_create_tiled_rectangle(34, 8, 4, 4);
-
-    // upcoming pieces 2-4 boxes
-    screen_create_tiled_rectangle(14, 14, 4, 12);
-    screen_create_tiled_rectangle(34, 14, 4, 12);
 }
 
 /**
@@ -88,25 +80,45 @@ void screen_create_background() {
  */
 void screen_create_scorebox() {
     uint8_t i;
-    const uint8_t level_str[5] = {0x27, 0x26, 0x28, 0x26, 0x27};
-    const uint8_t lines_str[5] = {0x27, 0x29, 0x2A, 0x26, 0x22};
+    const char level_str[5] = "LEVEL";
+    const char score_str[5] = "SCORE";
+    const char lines_str[5] = "LINES";
 
     // level
     for(i=0; i<5; i++) {
-        screen_set_tile_layer1(2+i, 2, level_str[i]);
-        screen_set_tile_layer1(22+i, 2, level_str[i]);
+        screen_set_tile_layer1(2+i, 2, level_str[i] - 'A' + 96);
+        screen_set_tile_layer1(22+i, 2, level_str[i] - 'A' + 96);
     }
 
     // score
     for(i=0; i<5; i++) {
-        screen_set_tile_layer1(2+i, 3, 0x22+i);
-        screen_set_tile_layer1(22+i, 3, 0x22+i);
+        screen_set_tile_layer1(2+i, 3,  score_str[i] - 'A' + 96);
+        screen_set_tile_layer1(22+i, 3, score_str[i] - 'A' + 96);
     }
 
     // lines
     for(i=0; i<5; i++) {
-        screen_set_tile_layer1(2+i, 4, lines_str[i]);
-        screen_set_tile_layer1(22+i, 4, lines_str[i]);
+        screen_set_tile_layer1(2+i, 4, lines_str[i] - 'A' + 96);
+        screen_set_tile_layer1(22+i, 4, lines_str[i] - 'A' + 96);
+    }
+}
+
+/**
+ * @brief Draw "next piece" boxes
+ * 
+ */
+void screen_draw_next_boxes() {
+    uint8_t i;
+    const char next_str[] = "NEXT";
+
+    // next piece box
+    screen_create_tiled_rectangle(14, 10, 4, 3);
+    screen_create_tiled_rectangle(34, 10, 4, 3);
+
+    // text
+    for(i=0; i<4; i++) {
+        screen_set_tile_layer1(14+i, 8, next_str[i] - 'A' + 96);
+        screen_set_tile_layer1(34+i, 8, next_str[i] - 'A' + 96);
     }
 }
 
