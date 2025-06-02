@@ -70,8 +70,8 @@ void screen_create_background() {
     screen_create_tiled_rectangle(22, 8, 10, 20);
 
     //score boxes
-    screen_create_lined_rectangle(2, 2, 12, 3);
-    screen_create_lined_rectangle(22, 2, 12, 3);
+    screen_create_lined_rectangle(2, 2, 16, 3);
+    screen_create_lined_rectangle(22, 2, 16, 3);
 
     // next piece box
     screen_create_tiled_rectangle(14, 8, 4, 4);
@@ -80,6 +80,34 @@ void screen_create_background() {
     // upcoming pieces 2-4 boxes
     screen_create_tiled_rectangle(14, 14, 4, 12);
     screen_create_tiled_rectangle(34, 14, 4, 12);
+}
+
+/**
+ * @brief Fill out the scorebox
+ * 
+ */
+void screen_create_scorebox() {
+    uint8_t i;
+    const uint8_t level_str[5] = {0x27, 0x26, 0x28, 0x26, 0x27};
+    const uint8_t lines_str[5] = {0x27, 0x29, 0x2A, 0x26, 0x22};
+
+    // level
+    for(i=0; i<5; i++) {
+        screen_set_tile_layer1(2+i, 2, level_str[i]);
+        screen_set_tile_layer1(22+i, 2, level_str[i]);
+    }
+
+    // score
+    for(i=0; i<5; i++) {
+        screen_set_tile_layer1(2+i, 3, 0x22+i);
+        screen_set_tile_layer1(22+i, 3, 0x22+i);
+    }
+
+    // lines
+    for(i=0; i<5; i++) {
+        screen_set_tile_layer1(2+i, 4, lines_str[i]);
+        screen_set_tile_layer1(22+i, 4, lines_str[i]);
+    }
 }
 
 /**

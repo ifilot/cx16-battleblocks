@@ -79,5 +79,9 @@
 #define AI_MOVEMENT_RIGHT   0x02
 #define AI_MOVEMENT_DOWN    0x03
 #define AI_ROTATE           0x04
+#define AI_DROP             0x05
+
+#define PLAYFIELD_WIDTH     10
+#define PLAYFIELD_HEIGHT    24
 
 #endif // _CONSTANTS_H

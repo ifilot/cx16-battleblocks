@@ -149,4 +149,11 @@ void game_loop_blockfill(struct GameState* gamestate);
  */
 uint8_t game_is_running();
 
+/**
+ * @brief Print game score
+ * 
+ * @param gamestate 
+ */
+void game_print_score(struct GameState* gamestate);
+
 #endif

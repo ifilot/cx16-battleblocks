@@ -23,8 +23,8 @@ void game_init() {
     bos_generate(&gs_player2.piece_list.bag1);
     bos_generate(&gs_player2.piece_list.bag2);
 
-    memset(gs_player1.playfield, 0xFF, 22*10);
-    memset(gs_player2.playfield, 0xFF, 22*10);
+    memset(gs_player1.playfield, 0xFF, PLAYFIELD_WIDTH * PLAYFIELD_HEIGHT);
+    memset(gs_player2.playfield, 0xFF, PLAYFIELD_WIDTH * PLAYFIELD_HEIGHT);
 
     memset(gs_player1.piece_shadow, 22, 8);
     memset(gs_player2.piece_shadow, 22, 8);
@@ -32,11 +32,17 @@ void game_init() {
     gs_player1.xoffset = 2;
     gs_player2.xoffset = 22;
 
+    gs_player1.score = 0;
+    gs_player2.score = 0;
+
     gs_player1.state = GAME_STATE_RUN;
     gs_player2.state = GAME_STATE_RUN;
 
     game_piece_new(&gs_player1);
     game_piece_new(&gs_player2);
+
+    game_print_score(&gs_player1);
+    game_print_score(&gs_player2);
 }
 
 /**
@@ -345,7 +351,7 @@ void game_draw_block(struct GameState* gamestate) {
  * 
  */
 void game_step() {
-    game_piece_down(&gs_player1);
+    //game_piece_down(&gs_player1);
     game_piece_down(&gs_player2);
 }
 
@@ -360,6 +366,8 @@ void game_purge_rows(struct GameState* gamestate) {
     uint8_t full;
     uint8_t update = 0;
     uint8_t xoffset = (gamestate->player == PLAYER1) ? 2 : 22;
+    uint8_t nrlines = 0;
+    const uint16_t score_incr4[5] = {0, 40, 100, 300, 1200};
 
     // update playing field
     for(i=19; i>=0; --i) {
@@ -374,14 +382,21 @@ void game_purge_rows(struct GameState* gamestate) {
         if(full == 1 && i < 19) {
             memcpy(&gamestate->playfield[i][0], &gamestate->playfield[i+1][0], (19-i) * 10);
             memset(&gamestate->playfield[19][0], 0xFF, 10);
+            nrlines++;
             update = 1;
         }
     }
 
     // redraw playing field
     if(update == 1) {
+        // redraw field
         screen_clear_rectangle(xoffset, 8, 10, 20);
         screen_redraw_playfield(xoffset, &gamestate->playfield[0][0]);
+
+        // update score
+        gamestate->score += score_incr4[nrlines];
+        gamestate->lines_cleared += nrlines;
+        game_print_score(gamestate);
     }
 }
 
@@ -411,30 +426,28 @@ void game_update_shadow(struct GameState* gamestate) {
 
     // find lowest position piece can be placed
     for(row=19; row>=0; row--) {
-        hit = 0;
+        hit = 1;
         for(i=0; i<4; i++) {
             if(gamestate->playfield[row+piece[i][1]][piece[i][0]] != 0xFF) {
-                hit = 1;
+                hit = 0;
                 break;
             }
         }
 
-        if(hit == 1 || row == 0) {
-            if(hit == 1) {
-                row++;
-            }
-
-            // copy current position to old shadow position
-            memcpy(&gamestate->piece_old_shadow[0][0], &gamestate->piece_shadow[0][0], 8);
-
-            // store new shadow
-            for(i=0; i<4; i++) {
-                gamestate->piece_shadow[i][0] = piece[i][0];
-                gamestate->piece_shadow[i][1] = row + piece[i][1];
-            }
-
-            return;
+        if(hit == 0) {
+            break;
         }
+    }
+
+    row++;
+
+    // copy current position to old shadow position
+    memcpy(&gamestate->piece_old_shadow[0][0], &gamestate->piece_shadow[0][0], 8);
+
+    // store new shadow
+    for(i=0; i<4; i++) {
+        gamestate->piece_shadow[i][0] = piece[i][0];
+        gamestate->piece_shadow[i][1] = row + piece[i][1];
     }
 }
 
@@ -522,5 +535,35 @@ uint8_t game_is_running() {
         return 1;
     } else {
         return 0;
+    }
+}
+
+/**
+ * @brief Print game score
+ * 
+ * @param gamestate 
+ */
+void game_print_score(struct GameState* gamestate) {
+    char buf[12];
+    uint8_t i=0;
+
+    sprintf(buf, "%10LU", gamestate->score);
+
+    for(i=0; i<10; i++) {
+        if(buf[i] == ' ') {
+            screen_set_tile_layer1(gamestate->xoffset + 6 + i, 3, 0x00);
+        } else {
+            screen_set_tile_layer1(gamestate->xoffset + 6 + i, 3, buf[i] - '0' + 0x18);
+        }
+    }
+
+    sprintf(buf, "%10U", gamestate->lines_cleared);
+
+    for(i=0; i<10; i++) {
+        if(buf[i] == ' ') {
+            screen_set_tile_layer1(gamestate->xoffset + 6 + i, 4, 0x00);
+        } else {
+            screen_set_tile_layer1(gamestate->xoffset + 6 + i, 4, buf[i] - '0' + 0x18);
+        }
     }
 }

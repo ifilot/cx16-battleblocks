@@ -47,6 +47,12 @@ void screen_load_tiles(const char* filename, uint32_t addr);
 void screen_create_background();
 
 /**
+ * @brief Fill out the scorebox
+ * 
+ */
+void screen_create_scorebox();
+
+/**
  * @brief Created tiled background
  * 
  * @param x x-position

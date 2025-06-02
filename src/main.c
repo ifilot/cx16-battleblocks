@@ -40,6 +40,7 @@ void main() {
     screen_fill_layer(LAYER1, 0x00);
 
     screen_create_background();
+    screen_create_scorebox();
 
     game_init();
 
@@ -57,7 +58,7 @@ void main() {
             game_parse_keyboard(keycode);
 
             if(ai_calculate_next_score(&gs_player2, &pfeval) == 1) {
-                if((now - startcpu) > 30) {
+                if((now - startcpu) > 1) {
                     mov = ai_determine_movement(&gs_player2, &pfeval);
                     switch(mov) {
                         case AI_MOVEMENT_LEFT:
@@ -71,6 +72,9 @@ void main() {
                         break;
                         case AI_MOVEMENT_DOWN:
                             game_piece_down(&gs_player2);
+                        break;
+                        case AI_DROP:
+                            game_piece_drop(&gs_player2);
                         break;
                     }
                     startcpu = game_get_tick();
