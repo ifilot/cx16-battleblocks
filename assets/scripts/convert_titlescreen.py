@@ -1,0 +1,96 @@
+#########################################################################
+#                                                                       #
+#   Author: Ivo Filot <ivo@ivofilot.nl>                                 #
+#                                                                       #
+#   CX16-BATTLEBLOCKS is free software:                                 #
+#   you can redistribute it and/or modify it under the terms of the     #
+#   GNU General Public License as published by the Free Software        #
+#   Foundation, either version 3 of the License, or (at your option)    #
+#   any later version.                                                  #
+#                                                                       #
+#   CX16-BATTLEBLOCKS is distributed in the hope that it will be useful,#
+#   but WITHOUT ANY WARRANTY; without even the implied warranty         #
+#   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.             #
+#   See the GNU General Public License for more details.                #
+#                                                                       #
+#   You should have received a copy of the GNU General Public License   #
+#   along with this program.  If not, see http://www.gnu.org/licenses/. #
+#                                                                       #
+#########################################################################
+
+import PIL.Image
+import os
+import numpy as np
+import sys
+
+ROOT = os.path.dirname(__file__)
+
+def main():
+    """
+    Produce a TILEMAP for the CX16 by opening a .png file containing the tiles
+    and a .png file containing the palette. Search for the best color in the
+    palette matching any pixel and store the tiles in a color-encoded data file
+    based on the palette.
+    """
+    # grab the colors
+    palette = get_color_palette()
+    
+    # encode tiles based on the color palette
+    img = PIL.Image.open(os.path.join(ROOT, '..', 'png', 'titlescreen.png'))
+    data = convert_picture(img, palette)
+    
+    with open(sys.argv[2], 'wb') as f:
+        f.write(data)
+
+def convert_picture(img, palette):
+    """
+    Convert the image pixels to palette indices and also create a preview image
+    showing the remapped colors.
+    """
+    img = img.convert("RGBA")
+    width, height = img.size
+    preview_img = PIL.Image.new("RGB", (width, height))
+    data = bytearray()
+
+    for y in range(height):
+        for x in range(width):
+            col = img.getpixel((x, y))
+            idx = find_closest_color(col, palette)
+            data.append(idx)
+            preview_color = tuple(palette[idx])  # RGB tuple from palette
+            preview_img.putpixel((x, y), preview_color)
+
+    # Save or show the intermediate result
+    preview_img.save(os.path.join(ROOT, '..', 'png', 'converted_preview.png'))
+    print("Preview image saved as 'converted_preview.png'")
+
+    return data
+
+def find_closest_color(col, palette):
+    """
+    Find closest color match from palette given a pixel color
+    """
+    # if transparent, return 0
+    if col[3] < 50:
+        return np.uint8(0x00)
+    
+    distances = np.linalg.norm(palette[1:,:] - col[0:3], axis=1)
+    return np.uint8(np.argmin(distances)+1)
+
+def get_color_palette():
+    """
+    Build the color palette from the CX16 palette png file
+    """
+    file = os.path.join(ROOT, '..', 'palette', 'cx16palette.png')
+    img = PIL.Image.open(file)
+    
+    colors = []
+    for i in range(16):
+        for j in range(16):
+            col = img.getpixel((j*64+32,i*64+32))
+            colors.append(col)
+    
+    return np.array(colors, np.uint8)
+                    
+if __name__ == '__main__':
+    main()

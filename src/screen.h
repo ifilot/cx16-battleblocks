@@ -32,7 +32,13 @@
  * @brief Initialize screen
  * 
  */
-void screen_init();
+void screen_init_title();
+
+/**
+ * @brief Initialize screen
+ * 
+ */
+void screen_init_game();
 
 /**
  * @brief Load the tiles from file into memory
@@ -114,6 +120,8 @@ extern void __fastcall__ screen_fill_layer(uint8_t layer, uint8_t tile_id);
  * @param tile tile_id
  */
 void screen_set_tile_layer1(uint8_t x, uint8_t y, uint8_t tile);
+
+void screen_draw_character(uint8_t x, uint8_t y, uint8_t val, uint8_t col);
 
 /**
  * @brief Redraw the playing field based on array

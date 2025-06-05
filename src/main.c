@@ -22,18 +22,37 @@
 #include "screen.h"
 #include "game.h"
 #include "ai.h"
+#include "menu.h"
 
 void main() {
     static uint8_t keycode;
     uint8_t start, now;
     uint8_t startcpu;
     uint8_t mov;
+    uint8_t i;
+    const char title[] = "Hello World!";
 
     // initialize screen
-    screen_init();
+    menu_clear();
+    screen_init_title();
+    screen_load_tiles("title.dat", TILEBASE);
+    screen_load_tiles("fontmap.dat", TILEBASE_CHARS);
+    for(i=0; i<strlen(title); i++) {
+        screen_draw_character(i,1,title[i],0x1F);
+    }
+
+    while(1){
+        asm("jsr $FFE4");
+        asm("sta %v", keycode);
+        if(keycode == KEYCODE_SPACE) {
+            break;
+        }
+    }
 
     // load tile data
+    VERA.display.video = 0;
     screen_load_tiles("tiles.dat", TILEBASE);
+    screen_init_game();
 
     // clear screen
     screen_fill_layer(LAYER0, 0x01);

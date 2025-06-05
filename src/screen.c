@@ -24,7 +24,31 @@
  * @brief Initialize screen
  * 
  */
-void screen_init() {
+void screen_init_title() {
+    // set scaling (resolution: 320 x 240)
+    VERA.display.hscale = 64;
+    VERA.display.vscale = 64;
+
+    // layer 0
+    // set screen to bitmap mode
+    VERA.layer0.config   = 0x07;      // 8 bpp color depth; bitmap mode
+    VERA.layer0.tilebase = (TILEBASE >> 9);
+    
+    // layer 1
+    // On this layer, the values that the user fills in for the tiles are shown
+    VERA.layer1.config   = (1 << 3);                        // T256C mode
+    VERA.layer1.tilebase = (TILEBASE_CHARS >> 9) | 0x03;    // 16x16px tiles
+    VERA.layer1.mapbase  = MAPBASE0 >> 9;                   // upper 8 bits
+
+    // enable both layers, no sprites
+    VERA.display.video = (1 << 5) | (1 << 4) | 1;           // VGA and layers 1 and 2
+}
+
+/**
+ * @brief Initialize screen
+ * 
+ */
+void screen_init_game() {
     // set scaling (resolution: 640 x 480)
     VERA.display.hscale = 128;
     VERA.display.vscale = 128;
@@ -33,13 +57,13 @@ void screen_init() {
     // This layer contains the game background and the puzzle background; this
     // includes all 'static' squares
     VERA.layer0.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
-    VERA.layer0.tilebase = (TILEBASE >> 9) | 0x03;          // 16 x 16 tiles
+    VERA.layer0.tilebase = (TILEBASE >> 9) | 0x03;          // 16x16px tiles
     VERA.layer0.mapbase  = MAPBASE0 >> 9;                   // upper 8 bits
     
     // layer 1
     // On this layer, the values that the user fills in for the tiles are shown
     VERA.layer1.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
-    VERA.layer1.tilebase = (TILEBASE >> 9) | 0x03;          // 16 x 16 tiles
+    VERA.layer1.tilebase = (TILEBASE >> 9) | 0x03;          // 16x16px tiles
     VERA.layer1.mapbase  = MAPBASE1 >> 9;                   // upper 8 bits
 
     // enable both layers, no sprites
@@ -275,6 +299,22 @@ void screen_set_tile_layer1(uint8_t x, uint8_t y, uint8_t tile) {
     VERA.address_hi = map_base_addr >> 16;
     VERA.address_hi |= 0b10000;
     VERA.data0 = tile;
+}
+
+/**
+ * @brief Position a single tile on the screen for layer1
+ * 
+ * @param x x-position
+ * @param y y-position
+ * @param tile tile_id
+ */
+void screen_draw_character(uint8_t x, uint8_t y, uint8_t val, uint8_t col) {
+    uint32_t map_base_addr = MAPBASE0 + (y << 6) + (x << 1);
+    VERA.address = map_base_addr;
+    VERA.address_hi = map_base_addr >> 16;
+    VERA.address_hi |= 0b10000;
+    VERA.data0 = val;
+    VERA.data0 = col;
 }
 
 /**

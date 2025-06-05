@@ -23,6 +23,7 @@
 
 // graphics positioning in VRAM
 #define TILEBASE            0x00000      // 256 * 16 tiles at 8bpp
+#define TILEBASE_CHARS      0x14000      // 1-bit charmap
 #define MAPBASE0            0x18000      // 64 x 64 tiles
 #define MAPBASE1            0x1A000      // 64 x 64 tiles
 #define PALETTEBASE         0x1FA20
