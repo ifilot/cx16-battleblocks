@@ -41,6 +41,32 @@ void screen_init_title() {
     VERA.layer1.mapbase  = MAPBASE0 >> 9;                   // upper 8 bits
 
     // enable both layers, no sprites
+    VERA.display.video = (1 << 4) | 1;           // VGA and layers 1 and 2
+}
+
+/**
+ * @brief Initialize screen
+ * 
+ */
+void screen_init_menu() {
+    // set scaling (resolution: 320 x 240)
+    VERA.display.hscale = 64;
+    VERA.display.vscale = 64;
+
+    // layer 0
+    // This layer contains the game background and the puzzle background; this
+    // includes all 'static' squares
+    VERA.layer0.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
+    VERA.layer0.tilebase = (TILEBASE >> 9) | 0x03;          // 16x16px tiles
+    VERA.layer0.mapbase  = MAPBASE0 >> 9;                   // upper 8 bits
+    
+    // layer 1
+    // On this layer, the values that the user fills in for the tiles are shown
+    VERA.layer1.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
+    VERA.layer1.tilebase = (TILEBASE >> 9) | 0x03;          // 16x16px tiles
+    VERA.layer1.mapbase  = MAPBASE1 >> 9;                   // upper 8 bits
+
+    // enable both layers, no sprites
     VERA.display.video = (1 << 5) | (1 << 4) | 1;           // VGA and layers 1 and 2
 }
 
@@ -69,9 +95,6 @@ void screen_init_game() {
     // enable both layers, no sprites
     //VERA.display.video |= 0b00110000;
     VERA.display.video = (1 << 5) | (1 << 4) | 1;           // VGA and layers 1 and 2
-
-    // enable sprites
-    //VERA.display.video |= 0b01000000;
 }
 
 /**

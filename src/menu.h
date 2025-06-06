@@ -5,6 +5,6 @@
 #include <stdint.h>
 #include "constants.h"
 
-void menu_clear();
+void menu_settext(uint8_t x, uint8_t y, const char* str);
 
 #endif // _MENU_H

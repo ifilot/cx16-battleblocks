@@ -51,6 +51,8 @@
 #define TILE_BORDER_LEFT     0x0B
 #define TILE_BORDER_BOTTOM   0x0C
 
+#define TILE_SELECT_CURSOR   34
+
 #define TILE_ENDGAME         0x2B
 
 #define PLAYER1              0x00

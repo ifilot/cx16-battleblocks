@@ -38,6 +38,12 @@ void screen_init_title();
  * @brief Initialize screen
  * 
  */
+void screen_init_menu();
+
+/**
+ * @brief Initialize screen
+ * 
+ */
 void screen_init_game();
 
 /**

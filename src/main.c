@@ -29,18 +29,12 @@ void main() {
     uint8_t start, now;
     uint8_t startcpu;
     uint8_t mov;
-    uint8_t i;
-    const char title[] = "Hello World!";
 
     // initialize screen
-    menu_clear();
     screen_init_title();
     screen_load_tiles("title.dat", TILEBASE);
-    screen_load_tiles("fontmap.dat", TILEBASE_CHARS);
-    for(i=0; i<strlen(title); i++) {
-        screen_draw_character(i,1,title[i],0x1F);
-    }
 
+    // wait until space is hit
     while(1){
         asm("jsr $FFE4");
         asm("sta %v", keycode);
@@ -49,14 +43,34 @@ void main() {
         }
     }
 
-    // load tile data
+    // load menu
     VERA.display.video = 0;
     screen_load_tiles("tiles.dat", TILEBASE);
-    screen_init_game();
-
-    // clear screen
     screen_fill_layer(LAYER0, 0x01);
     screen_fill_layer(LAYER1, 0x00);
+    screen_init_menu();
+    menu_settext(3, 1, "SELECT GAME");
+    menu_settext(3, 4, "SINGLE PLAYER");
+    menu_settext(3, 6, "VERSUS COMPUTER");
+    menu_settext(3, 8, "2P LOCAL");
+    menu_settext(3, 11, "HIT ENTER TO");
+    menu_settext(3, 12, "START");
+    screen_set_tile_layer1(1, 4, TILE_SELECT_CURSOR);
+
+    // wait until space is hit
+    while(1){
+        asm("jsr $FFE4");
+        asm("sta %v", keycode);
+        if(keycode == KEYCODE_SPACE) {
+            break;
+        }
+    }
+
+    // load game
+    VERA.display.video = 0;
+    screen_fill_layer(LAYER0, 0x01);
+    screen_fill_layer(LAYER1, 0x00);
+    screen_init_game();
 
     screen_create_background();
     screen_create_scorebox();
