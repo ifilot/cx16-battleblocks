@@ -46,3 +46,24 @@ _screen_fill_layer:
 ; layer address
 mapbase_mb:
     .byte $80, $A0
+
+.import popax
+.export _screen_hud_copy
+
+; Copy one span (at most 16 bytes) into the already-addressed VERA tile row.
+; The 128-byte source buffer belongs to screen.c; ptr1 is cc65 scratch space.
+_screen_hud_copy:
+    pha
+    jsr popax
+    sta ptr1
+    stx ptr1+1
+    pla
+    tax
+    ldy #0
+@copy:
+    lda (ptr1),y
+    sta VERA_DATA0
+    iny
+    dex
+    bne @copy
+    rts

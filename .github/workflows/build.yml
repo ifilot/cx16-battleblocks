@@ -1,0 +1,62 @@
+name: Build and release
+
+on:
+  push:
+    branches: [master, develop]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cc65 python3 python3-numpy python3-pil
+      - name: Verify release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: test "$GITHUB_REF_NAME" = "v$(cat VERSION)"
+      - name: Build and test
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          make clean
+          make dist
+          python3 -m unittest discover -s tests -q
+      - name: Upload distribution
+        uses: actions/upload-artifact@v7
+        with:
+          name: CX16-BATTLEBLOCKS.ZIP
+          path: build/CX16-BATTLEBLOCKS.ZIP
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: CX16-BATTLEBLOCKS.ZIP
+          path: build
+      - name: Verify package
+        run: python3 -m zipfile -t build/CX16-BATTLEBLOCKS.ZIP
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" build/CX16-BATTLEBLOCKS.ZIP --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" build/CX16-BATTLEBLOCKS.ZIP \
+              --verify-tag --title "Battle Blocks $GITHUB_REF_NAME" --generate-notes
+          fi

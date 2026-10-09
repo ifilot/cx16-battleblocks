@@ -28,6 +28,12 @@
 
 #include "constants.h"
 
+#define SCREEN_STYLE_CLASSIC 0
+#define SCREEN_STYLE_CYBERPUNK 1
+extern uint8_t screen_style;
+void screen_apply_style(void);
+void screen_apply_title_style(void);
+
 /**
  * @brief Initialize screen
  * 
@@ -56,19 +62,21 @@ void screen_load_tiles(const char* filename, uint32_t addr);
  * @brief Create the scene background
  * 
  */
-void screen_create_background();
+void screen_create_background(uint8_t players);
 
 /**
  * @brief Fill out the scorebox
  * 
  */
-void screen_create_scorebox();
+void screen_create_scorebox(uint8_t players);
 
 /**
  * @brief Draw "next piece" boxes
  * 
  */
-void screen_draw_next_boxes();
+void screen_draw_next_boxes(uint8_t players);
+void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value);
+void screen_draw_player_banner(uint8_t player, uint8_t computer, uint8_t number);
 
 /**
  * @brief Created tiled background
@@ -136,5 +144,8 @@ void screen_draw_character(uint8_t x, uint8_t y, uint8_t val, uint8_t col);
  * @param playfield 
  */
 void screen_redraw_playfield(uint8_t x, uint8_t* playfield);
+
+/* Erase one cell of a completed row inside the playfield. */
+void screen_clear_row_cell(uint8_t xoffset, uint8_t row, uint8_t column);
 
 #endif // _VIDEO_H

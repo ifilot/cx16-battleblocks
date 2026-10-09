@@ -23,6 +23,7 @@
 
 // graphics positioning in VRAM
 #define TILEBASE            0x00000      // 256 * 16 tiles at 8bpp
+#define TITLE_MAPBASE       0x1E000      // native splash: 64x32 map of 4bpp tiles
 #define TILEBASE_CHARS      0x14000      // 1-bit charmap
 #define MAPBASE0            0x18000      // 64 x 64 tiles
 #define MAPBASE1            0x1A000      // 64 x 64 tiles
@@ -58,6 +59,12 @@
 #define PLAYER1              0x00
 #define PLAYER2              0x01
 
+#define GAME_MODE_SINGLE     0x00
+#define GAME_MODE_COMPUTER   0x01
+#define GAME_MODE_LOCAL      0x02
+#define GAME_MODE_DEMO       0x03
+#define MENU_BACK            0xFF
+
 #define KEYCODE_DOWN        0x11
 #define KEYCODE_UP          0x91
 #define KEYCODE_LEFT        0x9D
@@ -67,7 +74,21 @@
 #define KEYCODE_ESCAPE      0x1B
 #define KEYCODE_0           0x30
 
+#define TILE_CYBERPUNK_FIRST 368
+#define TILE_CYBERPUNK_COUNT 16
+
 #define TILE_SHADOW         23
+
+// Stored as playfield types, so the normal type + 16 renderer draws them.
+#define TYPE_GARBAGE_DARK   112
+#define TYPE_GARBAGE_LIGHT  113
+#define TILE_GARBAGE_DARK   128
+#define TILE_GARBAGE_LIGHT  129
+#define HUD_SCORE            0
+#define HUD_LEVEL            1
+#define HUD_LINES            2
+#define HUD_PIECE_BASE       3
+#define HUD_CLEAR_BASE       10
 
 #define MOVE_RIGHT          1
 #define MOVE_LEFT           -1
@@ -76,6 +97,7 @@
 #define GAME_STATE_RUN      0x01
 #define GAME_STATE_LOST     0x02
 #define GAME_STATE_PAUSE    0x03
+#define GAME_STATE_CLEAR    0x04
 
 #define AI_NONE             0x00
 #define AI_MOVEMENT_LEFT    0x01
@@ -86,5 +108,6 @@
 
 #define PLAYFIELD_WIDTH     10
 #define PLAYFIELD_HEIGHT    24
+#define LINES_PER_LEVEL     10
 
 #endif // _CONSTANTS_H

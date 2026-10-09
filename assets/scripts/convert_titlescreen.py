@@ -18,79 +18,71 @@
 #                                                                       #
 #########################################################################
 
-import PIL.Image
-import os
-import numpy as np
+from pathlib import Path
 import sys
 
-ROOT = os.path.dirname(__file__)
+from PIL import Image
+
+
+ROOT = Path(__file__).resolve().parent
+
+
+def encode_splash(image):
+    """Encode native 16x16 tiles, a 64x32 map, and a lossless X16 palette."""
+    if image.size != (640, 480):
+        raise ValueError("The splash must be 640x480 pixels")
+
+    rgb = image.convert("RGB")
+    colors = rgb.getcolors(16)
+    if colors is None:
+        raise ValueError("The splash must use no more than 16 colors")
+    palette = sorted(color for _, color in colors)
+    if any(channel % 17 for color in palette for channel in color):
+        raise ValueError("Palette channels must be multiples of 17 for X16 RGB")
+
+    indices = {color: index for index, color in enumerate(palette)}
+    pixels = rgb.load()
+    unique_tiles = {}
+    data = bytearray()
+    tilemap = bytearray(64 * 32 * 2)
+    for tile_y in range(30):
+        for tile_x in range(40):
+            tile = bytearray()
+            for y in range(tile_y * 16, tile_y * 16 + 16):
+                for x in range(tile_x * 16, tile_x * 16 + 16, 2):
+                    tile.append((indices[pixels[x, y]] << 4) | indices[pixels[x + 1, y]])
+            tile = bytes(tile)
+            if tile not in unique_tiles:
+                unique_tiles[tile] = len(unique_tiles)
+                data.extend(tile)
+            tile_id = unique_tiles[tile]
+            offset = (tile_y * 64 + tile_x) * 2
+            tilemap[offset] = tile_id & 255
+            tilemap[offset + 1] = tile_id >> 8
+
+    # The tilemap starts at $1E000; its bytes must not overlap the tile set.
+    if len(data) > 0x1E000:
+        raise ValueError(f"Splash has {len(unique_tiles)} tiles; maximum is 960")
+
+    palette_data = bytearray()
+    for red, green, blue in palette:
+        palette_data.extend(((green // 17 << 4) | blue // 17, red // 17))
+    palette_data.extend(bytes(32 - len(palette_data)))
+    return bytes(data), bytes(tilemap), bytes(palette_data)
+
 
 def main():
-    """
-    Produce a TILEMAP for the CX16 by opening a .png file containing the tiles
-    and a .png file containing the palette. Search for the best color in the
-    palette matching any pixel and store the tiles in a color-encoded data file
-    based on the palette.
-    """
-    # grab the colors
-    palette = get_color_palette()
-    
-    # encode tiles based on the color palette
-    img = PIL.Image.open(os.path.join(ROOT, '..', 'png', 'titlescreen.png'))
-    data = convert_picture(img, palette)
-    
-    with open(sys.argv[2], 'wb') as f:
-        f.write(data)
+    if len(sys.argv) != 5:
+        raise SystemExit("Usage: convert_titlescreen.py INPUT.png TILES.DAT MAP.DAT PALETTE.DAT")
+    source = ROOT.parent / "png" / sys.argv[1]
+    with Image.open(source) as image:
+        tiles, tilemap, palette = encode_splash(image)
+    # screen_load_tiles uses secondary address 2: raw data, no load header.
+    Path(sys.argv[2]).write_bytes(tiles)
+    Path(sys.argv[3]).write_bytes(tilemap)
+    Path(sys.argv[4]).write_bytes(palette)
+    print(f"Native splash: {len(tiles) // 128} tiles, {len(tiles) + len(tilemap)} VRAM bytes, 16 colors")
 
-def convert_picture(img, palette):
-    """
-    Convert the image pixels to palette indices and also create a preview image
-    showing the remapped colors.
-    """
-    img = img.convert("RGBA")
-    width, height = img.size
-    preview_img = PIL.Image.new("RGB", (width, height))
-    data = bytearray()
 
-    for y in range(height):
-        for x in range(width):
-            col = img.getpixel((x, y))
-            idx = find_closest_color(col, palette)
-            data.append(idx)
-            preview_color = tuple(palette[idx])  # RGB tuple from palette
-            preview_img.putpixel((x, y), preview_color)
-
-    # Save or show the intermediate result
-    preview_img.save(os.path.join(ROOT, '..', 'png', 'converted_preview.png'))
-    print("Preview image saved as 'converted_preview.png'")
-
-    return data
-
-def find_closest_color(col, palette):
-    """
-    Find closest color match from palette given a pixel color
-    """
-    # if transparent, return 0
-    if col[3] < 50:
-        return np.uint8(0x00)
-    
-    distances = np.linalg.norm(palette[1:,:] - col[0:3], axis=1)
-    return np.uint8(np.argmin(distances)+1)
-
-def get_color_palette():
-    """
-    Build the color palette from the CX16 palette png file
-    """
-    file = os.path.join(ROOT, '..', 'palette', 'cx16palette.png')
-    img = PIL.Image.open(file)
-    
-    colors = []
-    for i in range(16):
-        for j in range(16):
-            col = img.getpixel((j*64+32,i*64+32))
-            colors.append(col)
-    
-    return np.array(colors, np.uint8)
-                    
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

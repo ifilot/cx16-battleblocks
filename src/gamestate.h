@@ -23,6 +23,18 @@ struct GameState {
     uint8_t state;
     uint32_t score;
     uint16_t lines_cleared;
+    uint8_t clear_rows[20];
+    uint8_t clear_count;
+    uint8_t clear_row;
+    uint8_t clear_column;
+    uint8_t clear_tick;
+    uint8_t pending_garbage;
+    uint8_t lose_row;
+    uint8_t lose_tick;
+    uint16_t piece_counts[7];
+    uint16_t clear_counts[4];
+    uint16_t level;
+    uint8_t gravity_tick;
 };
 
 #endif // _GAMESTATE_H

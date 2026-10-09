@@ -1,0 +1,10 @@
+/build/
+__pycache__/
+*.pyc
+/src/*.o
+/src/*.DAT
+/src/*.PRG
+/src/*.ZSM
+/src/SFX.BIN
+/src/BBLOCKS.sym
+/src/BBLOCKS.map

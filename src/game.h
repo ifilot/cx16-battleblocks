@@ -13,13 +13,16 @@
 
 #define TYPE_TO_TILEID(type) (16 + (type))
 
+extern uint8_t game_mode;
+extern struct GameState gs_player1;
+
 /**
  * @brief Initialize the game
  * 
  * Resets GameState structs for both players
  * 
  */
-void game_init();
+void game_init(uint8_t mode);
 
 /**
  * @brief Take the next piece from the bag and introduce it to the game
@@ -94,6 +97,7 @@ void game_piece_drop(struct GameState* gamestate);
  * 
  */
 void game_step();
+uint8_t game_gravity_interval(uint16_t level);
 
 /**
  * @brief Draw the active blocks (both shadow and regular)
@@ -108,6 +112,9 @@ void game_draw_block(struct GameState* gamestate);
  * 
  */
 void game_purge_rows(struct GameState* gamestate);
+
+/* Advance each board's row wipe without delaying input or the other player. */
+void game_update_clears(void);
 
 /**
  * @brief Show drop ouline
@@ -136,11 +143,12 @@ uint8_t game_get_tick();
 void game_check_over(struct GameState* gamestate);
 
 /**
- * @brief Play a small animation where the playing field gets filled with blocks
+ * @brief Start the nonblocking game-over fill animation
  * 
  * @param gamestate 
  */
 void game_loop_blockfill(struct GameState* gamestate);
+void game_update_blockfill(struct GameState* gamestate);
 
 /**
  * @brief Check whether game is still running

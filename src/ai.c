@@ -1,42 +1,33 @@
 #include "ai.h"
 
 struct PlayFieldEvaluation pfeval;
+struct PlayFieldEvaluation pfeval_player1;
+
+static const uint16_t column_bits[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
 
 void ai_prepare(struct GameState* gamestate, struct PlayFieldEvaluation* evaluation) {
-    uint8_t i,j;
-    uint8_t piece[4][2];
-    uint8_t miny = 20;
-    uint8_t minx = 20;
-    uint8_t rot_id = 0;
+    uint8_t row, col;
     uint8_t type = gamestate->piece_type;
-
-    memcpy(piece, gamestate->piece_position, 8);
-
-    // find minimum height of current piece
-    for(j=0; j<4; j++) { // loop over rotations
-        miny = 20;
-        minx = 20;
-        for(i=0; i<4; i++) {    // loop over blocks
-            if(piece[i][0] < minx) {
-                minx = piece[i][0];
+    const uint8_t* cell = &gamestate->playfield[0][0];
+    evaluation->unique_rotations = pieces_unique_rotations[type];
+    memcpy(evaluation->pieces, pieces_normalized[type], sizeof(evaluation->pieces));
+    memcpy(evaluation->widths, pieces_widths[type], sizeof(evaluation->widths));
+    memset(evaluation->score, 0xFF, sizeof(evaluation->score));
+    memset(evaluation->heights, 0, sizeof(evaluation->heights));
+    memset(evaluation->row_counts, 0, sizeof(evaluation->row_counts));
+    memset(evaluation->rows, 0, sizeof(evaluation->rows));
+    evaluation->occupied = 0;
+    evaluation->full_lines = 0;
+    for(row = 0; row < 20; row++) {
+        for(col = 0; col < PLAYFIELD_WIDTH; col++) {
+            if(*cell++ != 0xFF) {
+                evaluation->rows[row] |= column_bits[col];
+                evaluation->heights[col] = row + 1;
+                evaluation->row_counts[row]++;
+                evaluation->occupied++;
             }
-            if(piece[i][1] < miny) {
-                miny = piece[i][1];
-            }
         }
-
-        // store game piece
-        for(i=0; i<4; i++) {
-            evaluation->pieces[j][i][0] = piece[i][0] - minx;
-            evaluation->pieces[j][i][1] = piece[i][1] - miny;
-        }
-
-        // perform rotation for next item
-        for(i=0; i<4; i++) {
-            piece[i][0] += piece_rotation_table[type][rot_id][i][0];
-            piece[i][1] -= piece_rotation_table[type][rot_id][i][1];
-        }
-        rot_id++;
+        if(evaluation->row_counts[row] == PLAYFIELD_WIDTH) evaluation->full_lines++;
     }
 
     // reset evaluation
@@ -44,274 +35,202 @@ void ai_prepare(struct GameState* gamestate, struct PlayFieldEvaluation* evaluat
     evaluation->offset_id = 0;
     evaluation->best_rot_id = 0xFF;
     evaluation->best_offset_id = 0xFF;
+    evaluation->best_score = 0xFFFFFFFFUL;
+    evaluation->movement_stalls = 0;
+    evaluation->candidate_count = 0;
+    evaluation->candidate_id = 0;
+    evaluation->phase = 0;
+    evaluation->next_type = gamestate->piece_list.bag1.pieces[gamestate->piece_list.bag1.idx];
 }
 
-uint8_t ai_calculate_next_score(struct GameState* gamestate, 
-                                struct PlayFieldEvaluation* evaluation) {
-    uint8_t i;
-    int8_t row;
-    uint8_t x,y;
-    uint8_t rot_id = evaluation->rot_id;
-    uint8_t offset_id = evaluation->offset_id;
-    uint8_t hit = 0;
-    uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFIELD_WIDTH];
-    uint8_t noeval = 0;
-
-    if(rot_id >= 4) {
-        if(evaluation->best_rot_id == 0xFF) {
-            ai_find_best_score(evaluation);
-        }
-        return 1;
-    }
-
-    // create a copy of current play field
-    memcpy(playfield, gamestate->playfield, PLAYFIELD_WIDTH * PLAYFIELD_HEIGHT);
-
-    // find lowest position piece can be placed; we start at 18 rather
-    // than 19 to ensure that a vertical I-piece can be assessed
-    for(row=19; row>=0; row--) {
-        hit = 1;
-        for(i=0; i<4; i++) {
-            x = evaluation->pieces[rot_id][i][0] + offset_id;
-            y = row + evaluation->pieces[rot_id][i][1];
-
-            if(gamestate->playfield[y][x] != 0xFF) {
-                hit = 0;
-                break;
-            }
-        }
-
-        if(hit == 0) {
-            break;
-        }
-    }
-
-     
-    row++;
-    noeval = 0;
-    for(i=0; i<4; i++) {
-        x = evaluation->pieces[rot_id][i][0] + offset_id;
-        y = evaluation->pieces[rot_id][i][1] + row;
-        if(x > 9) {
-            noeval = 1;
-            break;
-        }
-        playfield[y][x] = 0x00; // tile_id does not matter, as long it is not 0xFF
-    }
-
-    if(noeval == 1) {
-        evaluation->score[rot_id][offset_id] = 0xFFFFFFFF;
-    } else {
-        evaluation->score[rot_id][offset_id] = ai_calculate_playfield_score(playfield);
-    }
-
-    if((evaluation->offset_id++) == 9) {
-        evaluation->rot_id++;
-        evaluation->offset_id = 0;
-    }
-
-    return 0;
-}
-
-/**
- * @brief Evaluate the weight function given a playfield
- * 
- * Initial parameters have been obtained from: https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/,
- * but have been tweaked for optimal performance in this game. Specifically, in constrast to the original implementation,
- * creation of holes has been significantly penalized.
- * 
- * Note that full floating point arithmetic would be too costly for this system, so integer-based evaluation is
- * used. Still, integer-based multiplication is relatively expensive, so we opted for using bitshifts + regular
- * addition. We use approximately 2-3 digits of precision for the weights. 1 digit of precision was tested, but this
- * gave poorer results.
- * 
- * @param playfield 
- * @return uint32_t 
+/* Integer heuristic, with wide intermediates: tall stacks must not wrap at
+ * 65536. Keep the existing weights and nonlinear penalty for deep wells.
  */
-uint32_t ai_calculate_playfield_score(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFIELD_WIDTH]) {
-    uint32_t score = 100000;
-    uint8_t heights_cache[10];
-    uint16_t height = ai_calculate_height(playfield, heights_cache);
-    uint16_t bumpiness = ai_calculate_bumpiness(heights_cache);
-    uint16_t full_lines = ai_calculate_full_lines(playfield, heights_cache);
-    uint16_t holes = ai_calculate_holes(playfield, heights_cache);
-    uint16_t tmp;
-
-    // height * 510 ~= (height << 9) - (height << 1)
-    score += (height << 9) - (height << 1);
-
-    // holes * 357 ~= 4 + 32 + 64 + 256 + 512 + 1 = 869
-    tmp = holes << 2;          // holes * 4
-    score += tmp;
-    tmp <<= 3;                 // * 32
-    score += tmp;
-    tmp <<= 1;                 // * 64
-    score += tmp;
-    tmp <<= 2;                 // * 256
-    score += tmp;
-    tmp <<= 1;                 // * 512
-    score += tmp;
-    score += holes;            // +1
-
-    // bumpiness * 184 ~= 8 + 16 + 32 + 128 = 184
-    tmp = bumpiness << 3;      // * 8
-    score += tmp;
-    tmp <<= 1;                 // * 16
-    score += tmp;
-    tmp <<= 1;                 // * 32
-    score += tmp;
-    tmp <<= 2;                 // * 128
-    score += tmp;
-
-    // full_lines * 761 ~= 512 + 256 - 4 - 2 - 1 = 761
-    tmp = full_lines;           // * 1
-    tmp <<= 1;                  // * 2
-    score += tmp;
-    tmp <<= 1;                  // * 4
-    score += tmp;
-    tmp <<= 6;                  // * 256
-    score -= tmp;
-    tmp <<= 1;                  // * 512
-    score -= tmp;
-    score += full_lines;
-
-    return score;
+static uint32_t ai_score(uint16_t height, uint16_t bumpiness,
+                         uint16_t holes, uint8_t full_lines) {
+    uint32_t h = height, b = bumpiness, o = holes, f = full_lines;
+    return 100000UL + (h << 9) - (h << 1)
+        + (o << 9) + (o << 8) + (o << 6) + (o << 5) + (o << 2) + o
+        + (b << 7) + (b << 5) + (b << 4) + (b << 3)
+        - (f << 9) - (f << 8) + (f << 2) + (f << 1) + f;
 }
 
-uint8_t ai_calculate_height(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFIELD_WIDTH], 
-                            uint8_t heights_cache[PLAYFIELD_WIDTH]) {
-    int8_t row;
-    uint8_t col;
-    uint8_t height = 0;
+static const uint8_t bumpweights[] = {0, 1, 2, 3, 4, 8, 16, 32, 64, 75, 100, 125};
 
-    //print_playfield(playfield);
-
-    for (col = 0; col < 10; col++) {
-        for (row = 19; row >= 0; --row) {
-            if (playfield[row][col] != 0xFF) {
-                break;
-            }
-        }
-        row++;
-        heights_cache[col] = row;
-        height += row;
+static uint8_t ai_landing(const uint8_t* heights, const uint8_t shape[4][2],
+                          uint8_t offset) {
+    uint8_t i, landing = 0;
+    int8_t required;
+    for(i = 0; i < 4; i++) {
+        required = heights[shape[i][0] + offset] - shape[i][1];
+        if(required > (int8_t)landing) landing = required;
     }
-
-    return height;
+    return landing;
 }
 
-/**
- * @brief Calculate bumpiness factor; penalize high amout of bumpiness to penalize wells.
- *
- * Note that this (non-linear) penalization of bumpiness is critical in getting a stable
- * AI. Implementations without this type of penalization resulted in formation of large
- * wells, which accumulate over time. Some solutions have an explicit "well-term" to
- * combat this, but this implementation with a look-up table is more cost-effective.
- * 
- * @param heights 
- * @return uint16_t 
- */
-uint16_t ai_calculate_bumpiness(uint8_t heights[PLAYFIELD_WIDTH]) {
+/* Collapse full rows and rebuild the profile without changing the live board. */
+static uint8_t ai_profile(uint16_t* rows, uint8_t* heights, uint8_t* counts,
+                          uint8_t* occupied) {
+    uint8_t row, dest = 0, col, lines = 0;
+    uint16_t mask;
+    memset(heights, 0, 10);
+    memset(counts, 0, 20);
+    *occupied = 0;
+    for(row = 0; row < 20; row++) {
+        mask = rows[row];
+        if(mask == 0x03FF) { lines++; continue; }
+        rows[dest] = mask;
+        if(!mask) { dest++; continue; }
+        for(col = 0; col < 10; col++) {
+            if(mask & 1) {
+                heights[col] = dest + 1;
+                counts[dest]++;
+                (*occupied)++;
+            }
+            mask >>= 1;
+        }
+        dest++;
+    }
+    while(dest < 20) rows[dest++] = 0;
+    return lines;
+}
+
+static uint32_t ai_profile_score(const uint8_t* heights, uint8_t occupied,
+                                 uint8_t lines) {
     uint8_t i;
-    uint16_t bumpiness = 0;
-    const uint16_t bumpweights[] = {0, 1, 2, 3, 4, 8, 16, 32, 64, 75, 100, 125};
-
-    for (i = 0; i < 9; i++) {
-        int16_t diff = (int16_t)heights[i] - (int16_t)heights[i + 1];
-        // take absolute value
-        if (diff < 0) {
-            diff = -diff;
+    int8_t diff;
+    uint16_t height = 0, bumpiness = 0;
+    for(i = 0; i < 10; i++) {
+        height += heights[i];
+        if(i) {
+            diff = heights[i] - heights[i - 1];
+            if(diff < 0) diff = -diff;
+            bumpiness += bumpweights[diff > 11 ? 11 : diff];
         }
-        bumpiness += bumpweights[diff];
     }
-
-    return bumpiness;
+    return ai_score(height, bumpiness, height - occupied, lines);
 }
 
-uint8_t ai_calculate_full_lines(uint8_t playfield[PLAYFIELD_HEIGHT][PLAYFIELD_WIDTH], 
-                                uint8_t heights[PLAYFIELD_WIDTH]) {
-    uint8_t row, col;
-    uint8_t full_lines = 0;
-    uint8_t is_full;
-    uint8_t max_height = 0;
-
-    // Step 1: Find the maximum height
-    for (col=0; col<PLAYFIELD_WIDTH; col++) {
-        if (heights[col] > max_height) {
-            max_height = heights[col];
-        }
+static uint32_t ai_placement_score(const uint16_t* rows, const uint8_t* base_heights,
+                                   const uint8_t* base_counts, uint8_t occupied,
+                                   const uint8_t shape[4][2], uint8_t offset, uint8_t lines) {
+    uint8_t heights[10], counts[20], i, x, y;
+    uint16_t placed[20];
+    uint8_t landing = ai_landing(base_heights, shape, offset);
+    memcpy(heights, base_heights, 10);
+    memcpy(counts, base_counts, 20);
+    for(i = 0; i < 4; i++) {
+        x = shape[i][0] + offset;
+        y = shape[i][1] + landing;
+        if(y >= 20) return 0xFFFFFFFFUL;
+        if(y + 1 > heights[x]) heights[x] = y + 1;
+        if(++counts[y] == 10) lines++;
     }
-
-    // Step 2: Only check rows up to the max height
-    for (row=0; row<max_height; row++) {
-        is_full = 1;
-        for (col=0; col<PLAYFIELD_WIDTH; col++) {
-            if (playfield[row][col] == 0xFF) {
-                is_full = 0;
-                break;
-            }
+    occupied += 4;
+    if(lines) {
+        memcpy(placed, rows, sizeof(placed));
+        for(i = 0; i < 4; i++) {
+            placed[shape[i][1] + landing] |= column_bits[shape[i][0] + offset];
         }
-        if (is_full) {
-            full_lines++;
-        }
+        ai_profile(placed, heights, counts, &occupied);
     }
-
-    return full_lines;
+    return ai_profile_score(heights, occupied, lines);
 }
 
-uint8_t ai_calculate_holes(uint8_t playfield[PLAYFIELD_HEIGHT][10], uint8_t heights[10]) {
-    uint8_t col;
-    int8_t row;
-    uint8_t holes = 0;
-
-    for (col=0; col<PLAYFIELD_WIDTH; col++) {
-        uint8_t block_found = 0;
-        for (row = heights[col]; row >= 0; row--) {  // top to bottom
-            if (playfield[row][col] != 0xFF) {
-                block_found = 1;
-            } else if (block_found) {
-                holes++;
-            }
-        }
+/* Keep the four best immediate placements, preserving deterministic ties. */
+static void ai_shortlist(struct PlayFieldEvaluation* e, uint8_t candidate,
+                          uint32_t score) {
+    uint8_t i, j;
+    for(i = 0; i < e->candidate_count; i++) {
+        j = e->candidates[i];
+        if(score < e->score[j / 10][j % 10]) break;
     }
-
-    return holes;
-}
-   
-void print_playfield(uint8_t playfield[PLAYFIELD_HEIGHT][10]) {
-    int row, col;
-    for (row = 0; row < PLAYFIELD_HEIGHT; row++) {
-        for (col = 0; col < PLAYFIELD_WIDTH; col++) {
-            printf("%02X ", playfield[row][col]);
-        }
-        printf("\n");
-    }
+    if(i == 4) return;
+    if(e->candidate_count < 4) e->candidate_count++;
+    for(j = e->candidate_count - 1; j > i; j--) e->candidates[j] = e->candidates[j - 1];
+    e->candidates[i] = candidate;
 }
 
-void ai_find_best_score(struct PlayFieldEvaluation* eval) {
+static void ai_prepare_future(struct PlayFieldEvaluation* e) {
+    uint8_t candidate = e->candidates[e->candidate_id];
+    uint8_t rot = candidate / 10, offset = candidate % 10, i, landing, lines;
+    memcpy(e->future_rows, e->rows, sizeof(e->rows));
+    landing = ai_landing(e->heights, e->pieces[rot], offset);
+    for(i = 0; i < 4; i++) {
+        e->future_rows[e->pieces[rot][i][1] + landing] |=
+            column_bits[e->pieces[rot][i][0] + offset];
+    }
+    lines = ai_profile(e->future_rows, e->future_heights, e->future_counts,
+                       &e->future_occupied);
+    e->immediate_score = ai_profile_score(e->future_heights, e->future_occupied, lines);
+    e->future_score = 0xFFFFFFFFUL;
+    e->next_rot = 0;
+    e->next_offset = 0;
+}
+
+uint8_t ai_calculate_next_score(struct GameState* gamestate,
+                                struct PlayFieldEvaluation* e) {
     uint8_t rot, offset;
-    uint32_t best_score = 0xFFFFFFFF;
-    uint8_t best_rot = 0;
-    uint8_t best_off = 0;
-
-    for (rot = 0; rot < 4; rot++) {
-        for (offset = 0; offset < 10; offset++) {
-            uint32_t current_score = eval->score[rot][offset];
-            if (current_score < best_score) {
-                best_score = current_score;
-                best_rot = rot;
-                best_off = offset;
-            }
+    uint32_t score;
+    (void)gamestate; // Both searches use immutable snapshots of the board.
+    if(e->phase == 2) return 1;
+    if(e->phase == 0) {
+        rot = e->rot_id;
+        offset = e->offset_id;
+        score = ai_placement_score(e->rows, e->heights, e->row_counts, e->occupied,
+                                   e->pieces[rot], offset, e->full_lines);
+        e->score[rot][offset] = score;
+        if(score != 0xFFFFFFFFUL) ai_shortlist(e, rot * 10 + offset, score);
+        if(++e->offset_id > PLAYFIELD_WIDTH - e->widths[rot]) {
+            e->offset_id = 0;
+            do { e->rot_id++; }
+            while(e->rot_id < 4 && !(e->unique_rotations & (1 << e->rot_id)));
         }
+        if(e->rot_id < 4) return 0;
+        if(!e->candidate_count) { e->phase = 2; return 1; }
+        e->phase = 1;
+        // Start steering while preview search runs; gravity can be fast.
+        offset = e->candidates[0];
+        e->best_rot_id = offset / 10;
+        e->best_offset_id = offset % 10;
+        // Preparing a simulated board is a separate, bounded game-loop step.
+        e->next_rot = 4;
+        return 0;
     }
-
-    eval->best_rot_id = best_rot;
-    eval->best_offset_id = best_off;
+    if(e->next_rot == 4) { ai_prepare_future(e); return 0; }
+    rot = e->next_rot;
+    offset = e->next_offset;
+    score = ai_placement_score(e->future_rows, e->future_heights, e->future_counts,
+                               e->future_occupied, pieces_normalized[e->next_type][rot], offset, 0);
+    if(score < e->future_score) e->future_score = score;
+    if(++e->next_offset > PLAYFIELD_WIDTH - pieces_widths[e->next_type][rot]) {
+        e->next_offset = 0;
+        do { e->next_rot++; }
+        while(e->next_rot < 4 && !(pieces_unique_rotations[e->next_type] & (1 << e->next_rot)));
+    }
+    if(e->next_rot < 4) return 0;
+    // A doomed preview must lose to every candidate with a legal continuation.
+    score = e->immediate_score + (e->future_score == 0xFFFFFFFFUL ? 1000000UL : e->future_score);
+    if(score < e->best_score) {
+        e->best_score = score;
+        offset = e->candidates[e->candidate_id];
+        if(e->best_rot_id != offset / 10 || e->best_offset_id != offset % 10) {
+            e->movement_stalls = 0;
+        }
+        e->best_rot_id = offset / 10;
+        e->best_offset_id = offset % 10;
+    }
+    if(++e->candidate_id == e->candidate_count) { e->phase = 2; return 1; }
+    return 0;
 }
 
 uint8_t ai_determine_movement(struct GameState* gamestate, struct PlayFieldEvaluation* evaluation) {
     uint8_t i;
     uint8_t leftmost_x = 255;
+
+    // No visible landing exists. Lock the current piece and finish the match
+    // rather than endlessly steering towards an invalid candidate.
+    if(evaluation->best_rot_id == 0xFF) return AI_DROP;
 
     // Step 1: Check if rotation is needed
     if (gamestate->piece_rot_idx != evaluation->best_rot_id) {
