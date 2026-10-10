@@ -92,7 +92,18 @@ def build():
     header+='struct HudField { uint16_t x, y; uint8_t width, height, scale, background; };\n'
     header+='static const struct HudField hud_fields[14] = {\n'+''.join('    {'+', '.join(map(str,f))+'},\n' for f in FIELDS)+'};\n'
     header+='/* Zero is transparent; other entries are tile IDs minus 129. */\n'
-    header+='static const uint8_t hud_map[30][40] = {\n'+''.join('    {'+', '.join(str(t-129 if t else 0) for t in r)+'},\n' for r in tilemap)+'};\n'
+    # Omit empty rows from resident RAM; digit rendering uses the row lookup.
+    compact = [row for row in tilemap if any(row)]
+    lookup = []
+    number = 0
+    for row in tilemap:
+        if any(row):
+            number += 1
+            lookup.append(number)
+        else:
+            lookup.append(0)
+    header+='static const uint8_t hud_rows[30] = {'+', '.join(map(str, lookup))+'};\n'
+    header+=f'static const uint8_t hud_map[{len(compact)}][40] = {{\n'+''.join('    {'+', '.join(str(t-129 if t else 0) for t in r)+'},\n' for r in compact)+'};\n'
     header+='static const uint8_t hud_digits[10][7][5] = {\n'
     for digit in range(10):
         rows=['{'+', '.join('11' if bit=='1' else '30' for bit in bits)+'}' for bits in hud.FONT[str(digit)]]

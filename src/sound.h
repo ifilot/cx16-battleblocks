@@ -8,6 +8,13 @@
 extern uint8_t sound_ready;
 extern uint8_t sound_current_music;
 extern uint8_t sfx_prio;
+extern uint8_t sound_music_enabled;
+extern uint8_t sound_effects_enabled;
+extern uint8_t sound_music_volume;
+extern uint8_t sound_effects_volume;
+
+/* Separate 0-10 levels; disabling a channel preserves its chosen volume. */
+void sound_apply_options(void);
 
 void sound_init(void);
 void sound_title(void);

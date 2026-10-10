@@ -6,6 +6,10 @@
 
 uint8_t sound_ready;
 uint8_t sound_current_music = 255;
+uint8_t sound_music_enabled = 1;
+uint8_t sound_effects_enabled = 1;
+uint8_t sound_music_volume = 9;
+uint8_t sound_effects_volume = 10;
 static uint8_t next_battle;
 
 extern void sound_engine_init(void);
@@ -13,6 +17,19 @@ extern void sound_stop_effects(void);
 extern uint8_t sound_load_file(void);
 extern void __fastcall__ sound_play_music(uint8_t bank);
 extern void __fastcall__ sound_play_effect(uint16_t offset);
+extern void __fastcall__ sound_music_atten(uint8_t attenuation);
+extern void __fastcall__ sound_effects_atten(uint8_t attenuation);
+
+static uint8_t attenuation(uint8_t enabled, uint8_t volume) {
+    if(!enabled || !volume) return 63;
+    return (10 - volume) * 4;
+}
+
+void sound_apply_options(void) {
+    if(!sound_ready) return;
+    sound_music_atten(attenuation(sound_music_enabled, sound_music_volume));
+    sound_effects_atten(attenuation(sound_effects_enabled, sound_effects_volume));
+}
 
 static uint8_t load_banked(const char* name, uint8_t bank) {
     uint8_t saved = RAM_BANK;
@@ -39,6 +56,7 @@ void sound_init(void) {
         if(!load_banked(files[i], banks[i])) return;
     sound_engine_init();
     sound_ready = 1;
+    sound_apply_options();
 }
 
 static void sound_music(uint8_t bank) {
@@ -67,13 +85,13 @@ void sound_result(uint8_t victory) {
 }
 
 void sound_menu_effect(uint16_t effect) {
-    if(!sound_ready) return;
+    if(!sound_ready || !sound_effects_enabled || !sound_effects_volume) return;
     sfx_prio = 1;
     sound_play_effect(effect);
 }
 
 void sound_player_effect(uint8_t player, uint16_t p1, uint16_t p2) {
-    if(!sound_ready) return;
+    if(!sound_ready || !sound_effects_enabled || !sound_effects_volume) return;
     sfx_prio = player == PLAYER1 ? 1 : 2;
     sound_play_effect(player == PLAYER1 ? p1 : p2);
 }

@@ -35,7 +35,7 @@ static void show_title(void) {
     screen_load_tiles("title.dat", TILEBASE);
     screen_load_tiles("titlemap.dat", TITLE_MAPBASE);
     screen_apply_title_style();
-    VERA.display.video = (1 << 4) | 1;
+    VERA.display.video = 0x11;
     sound_title();
     do {
         key = cbm_k_getin();
@@ -44,7 +44,7 @@ static void show_title(void) {
 }
 
 static void show_menu(void) {
-    VERA.display.video = 0;
+    screen_transition_begin();
     if(!game_tiles_loaded) {
         screen_load_tiles("tiles.dat", TILEBASE);
         screen_load_tiles("cyber.dat", (uint32_t)TILE_CYBERPUNK_FIRST * 256);
@@ -58,11 +58,11 @@ static void show_menu(void) {
 
 static void show_game(uint8_t mode) {
     uint8_t players = mode == GAME_MODE_SINGLE ? 1 : 2;
-    VERA.display.video = 0;
+    screen_transition_begin();
     screen_fill_layer(LAYER0, TILE_BG0);
     screen_fill_layer(LAYER1, TILE_NONE);
     screen_init_game();
-    VERA.display.video = 0;
+    VERA.display.video = 0x41;
     screen_create_background(players);
     screen_create_scorebox(players);
     screen_draw_next_boxes(players);
@@ -87,8 +87,8 @@ static void show_game(uint8_t mode) {
         screen_draw_player_banner(PLAYER2, 0, 2);
         menu_settext(22, 29, "WASD Q DROP");
     }
+    screen_transition_end(0x31);
     gs_player1.gravity_tick = gs_player2.gravity_tick = game_get_tick();
-    VERA.display.video = 0x31;
     sound_battle();
 }
 
@@ -178,7 +178,8 @@ static void show_result(void) {
 void main(void) {
     uint8_t mode = GAME_MODE_COMPUTER;
     uint8_t selected;
-    VERA.display.video = 0;
+    VERA.display.video = 0x41;
+    screen_transition_init();
     sound_init();
     show_title();
     while(1) {

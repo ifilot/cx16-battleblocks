@@ -86,7 +86,7 @@ void screen_apply_style(void) {
     uint8_t video = VERA.display.video;
     /* Reserved aliases: grid 232-235, floor 236-237, garbage ink 238, shadows 239. */
     static const uint8_t originals[] = {26, 28, 29, 30, 147, 148, 11, 11};
-    VERA.display.video = 0;
+    screen_transition_begin();
     VERA.control = 0;
     VERA.address = 0xFA00;
     VERA.address_hi = 0x11;
@@ -104,7 +104,7 @@ void screen_apply_style(void) {
             screen_palette_color(cyberpunk_palette[i].index, cyberpunk_palette[i].rgb);
     }
     screen_style_background();
-    VERA.display.video = video;
+    screen_transition_end(video);
 }
 
 void screen_apply_title_style(void) {
@@ -120,8 +120,9 @@ void screen_apply_title_style(void) {
 static uint8_t garbage_tiles_ready;
 static uint8_t hud_tiles_ready;
 static uint8_t banner_tiles_style = 255;
-static uint8_t hud_pixels[128];
-static char hud_last_digits[2][14][10];
+/* One digit row needs at most ten pixels; only the score has ten slots. */
+static uint8_t hud_pixels[10];
+static char hud_last_digits[2][75];
 static uint32_t hud_last_values[2][14];
 static uint8_t hud_value_ready[2][14];
 extern void __fastcall__ screen_hud_copy(const uint8_t* pixels, uint8_t count);
@@ -136,7 +137,7 @@ void screen_init_title() {
     hud_tiles_ready = 0;
     banner_tiles_style = 255;
 
-    VERA.display.video = 0;
+    screen_loading_begin();
     if(!palette_saved) {
         for(i = 0; i < sizeof(original_palette); i++)
             original_palette[i] = vpeek(0x1FA00UL + i);
@@ -187,8 +188,8 @@ void screen_init_menu() {
     VERA.layer1.tilebase = (TILEBASE >> 9) | 0x03;          // 16x16px tiles
     VERA.layer1.mapbase  = MAPBASE1 >> 9;                   // upper 8 bits
 
-    // enable both layers, no sprites
-    VERA.display.video = (1 << 5) | (1 << 4) | 1;           // VGA and layers 1 and 2
+    // Keep the loading label visible while the scene is built.
+    VERA.display.video = 0x41;           // VGA and loading label
 }
 
 /* Reuse the block silhouette and bevels with the existing grey palette.
@@ -238,9 +239,8 @@ void screen_init_game() {
     VERA.layer1.tilebase = (TILEBASE >> 9) | 0x03;          // 16x16px tiles
     VERA.layer1.mapbase  = MAPBASE1 >> 9;                   // upper 8 bits
 
-    // enable both layers, no sprites
-    //VERA.display.video |= 0b00110000;
-    VERA.display.video = (1 << 5) | (1 << 4) | 1;           // VGA and layers 1 and 2
+    // Keep the loading label visible while the scene is built.
+    VERA.display.video = 0x41;           // VGA and loading label
 }
 
 /**
@@ -277,8 +277,9 @@ void screen_create_scorebox(uint8_t players) {
         hud_tiles_ready = 1;
     }
     for(row = 0; row < 30; row++) {
+        if(!hud_rows[row]) continue;
         for(col = 0; col < limit; col++) {
-            tile = hud_map[row][col];
+            tile = hud_map[hud_rows[row] - 1][col];
             if(!tile) continue;
             tile += 129;
             address = (uint16_t)MAPBASE1 + ((uint16_t)row << 7) + ((uint16_t)col << 1);
@@ -310,6 +311,7 @@ static void screen_hud_digit_row(uint8_t* pixels, const uint8_t* glyph,
 void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value) {
     const struct HudField* f = &hud_fields[field];
     char text[11], ch;
+    char* cached = hud_last_digits[player] + (field ? 5 + field * 5 : 0);
     uint8_t length, slots, slot, row, scale = f->scale, width;
     uint8_t remaining, chunk, written;
     uint16_t x, y, tile;
@@ -322,8 +324,8 @@ void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value) {
     width = 5 * scale;
     for(slot = 0; slot < slots; slot++) {
         ch = slot < slots - length ? ' ' : text[slot - (slots - length)];
-        if(hud_last_digits[player][field][slot] == ch ||
-           (!hud_last_digits[player][field][slot] && ch == ' ')) continue;
+        if(cached[slot] == ch ||
+           (!cached[slot] && ch == ' ')) continue;
         if(ch != ' ') glyph = &hud_digits[ch - '0'][0][0];
         for(row = 0; row < f->height; row++) {
             if(ch == ' ') memset(hud_pixels, f->background, width);
@@ -333,7 +335,7 @@ void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value) {
             remaining = width;
             written = 0;
             while(remaining) {
-                tile = 129 + (uint16_t)hud_map[y >> 4][x >> 4];
+                tile = 129 + (uint16_t)hud_map[hud_rows[y >> 4] - 1][x >> 4];
                 VERA.address = (tile << 8) + ((y & 15) << 4) + (x & 15);
                 VERA.address_hi = 0x10 | (tile >> 8);
                 chunk = 16 - (x & 15);
@@ -344,7 +346,7 @@ void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value) {
                 written += chunk;
             }
         }
-        hud_last_digits[player][field][slot] = ch;
+        cached[slot] = ch;
     }
     hud_last_values[player][field] = value;
     hud_value_ready[player][field] = 1;

@@ -7,6 +7,7 @@
 .export _sound_engine_init, _sound_play_music, _sound_play_effect
 .export _sound_stop_effects, _sfx_prio
 .export _sound_load_file
+.export _sound_music_atten, _sound_effects_atten
 
 .import __BSS_RUN__, __BSS_SIZE__, __HIMEM__, __STACKSIZE__
 .assert __BSS_RUN__ + __BSS_SIZE__ <= __HIMEM__ - __STACKSIZE__, lderror, "Game data overlaps the software stack or I/O"
@@ -15,6 +16,7 @@
 _sfx_prio: .res 1
 saved_bank: .res 1
 music_bank: .res 1
+effects_atten: .res 1
 
 .code
 ; SETNAM/SETLFS and the starting RAM bank are already selected by C.
@@ -42,9 +44,6 @@ failed:
     lda #1
     jsr zsmkit::zsm_init_engine
     jsr zsmkit::zsmkit_setisr
-    ldx #0
-    lda #4
-    jsr zsmkit::zsm_setatten
     pla
     sta $00
     plp
@@ -105,6 +104,30 @@ failed:
     jsr zsmkit::zsm_stop
     ldx #2
     jsr zsmkit::zsm_stop
+    plp
+    rts
+.endproc
+
+; fastcall A = attenuation (0 full volume, 63 mute).
+; Music owns priority 0; both players and the menu use priorities 1/2.
+.proc _sound_music_atten
+    php
+    sei
+    ldx #0
+    jsr zsmkit::zsm_setatten
+    plp
+    rts
+.endproc
+
+.proc _sound_effects_atten
+    php
+    sei
+    sta effects_atten
+    ldx #1
+    jsr zsmkit::zsm_setatten
+    lda effects_atten
+    ldx #2
+    jsr zsmkit::zsm_setatten
     plp
     rts
 .endproc

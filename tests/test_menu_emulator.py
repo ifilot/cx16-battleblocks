@@ -5,6 +5,7 @@ Tests use the sibling emulator and ROM, skipping when those are unavailable.
 """
 
 import json
+import os
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
@@ -14,8 +15,8 @@ from PIL import Image, ImageChops
 
 
 ROOT = Path(__file__).resolve().parents[1]
-EMULATOR = ROOT.parent / "x16-emulator/build/x16emu"
-ROM = ROOT.parent / "emulator/rom.bin"
+EMULATOR = Path(os.environ.get("EMU", ROOT.parent / "x16-emulator/build/x16emu"))
+ROM = Path(os.environ.get("ROM", ROOT.parent / "emulator/rom.bin"))
 API = ROOT.parent / "x16-emulator/api/python"
 AVAILABLE = EMULATOR.is_file() and ROM.is_file() and (API / "x16agent.py").is_file()
 if AVAILABLE:
@@ -40,11 +41,18 @@ class MenuTests(unittest.TestCase):
         self.press("Space")
         self.emu.advance(30)
 
-    def press(self, key):
+    def press(self, key, settle=True):
         self.emu.request("key", key=key, down=True)
         self.emu.advance(3)
         self.emu.request("key", key=key, down=False)
         self.emu.advance(3)
+        if settle:
+            for _ in range(180):
+                if not (self.emu.read_memory(0x9F29)[0] & 0x40):
+                    break
+                self.emu.advance(1)
+            else:
+                self.fail('Scene transition did not finish')
 
     def read(self, name, offset=0, length=1):
         return self.emu.read_memory(self.symbols[name] + offset, length)
@@ -56,15 +64,159 @@ class MenuTests(unittest.TestCase):
         return self.emu.read_memory(0x1A000 + (y * 64 + x) * 2, space="vram")[0]
 
     def assert_cursor(self, row):
-        for option in (9, 12, 15, 18, 21):
+        for option in (8, 10, 12, 14, 16, 18, 20):
             self.assertEqual(self.tile(9, option), 34 if option == row else 0)
+
+    def assert_menu_text(self, row, text):
+        punctuation = {'.': 36, '/': 37, '-': 38, ':': 39, '%': 40, ' ': 0}
+        x = (40 - len(text)) // 2
+        for index, char in enumerate(text.upper()):
+            tile = punctuation.get(char)
+            if tile is None:
+                tile = 24 + int(char) if char.isdigit() else 96 + ord(char) - ord('A')
+            self.assertEqual(self.tile(x + index, row), tile, text)
+
+    def test_about_details_and_return_preserve_theme_and_selection(self):
+        self.press('T')
+        for exit_key in ('Escape', 'Return', 'Space'):
+            self.press('7')
+            self.press('Return')
+            self.emu.advance(30)
+            self.assert_menu_text(2, 'ABOUT BATTLE BLOCKS')
+            self.assert_menu_text(6, 'VERSION V' + (ROOT / 'VERSION').read_text().strip())
+            self.assert_menu_text(9, 'CREATED BY IVO FILOT')
+            self.assert_menu_text(12, 'COMMANDER X16  65C02 AT 8 MHZ')
+            self.assert_menu_text(23, 'GITHUB.COM/IFILOT/CX16-BATTLEBLOCKS')
+            self.press(exit_key)
+            self.emu.advance(30)
+            self.assert_cursor(20)
+            self.assertEqual(self.read('_screen_style'), bytes([1]))
+        self.start(3)
+        self.assertEqual(self.read('_gs_player1', 292), bytes([1]))
+
+    def test_submenus_keep_card_tiles_inside_the_current_box(self):
+        for theme in (0, 1):
+            if theme:
+                self.press('T')
+            for entry, box in (('7', (1, 4, 38, 22)), ('6', (3, 5, 34, 18))):
+                self.press(entry)
+                self.press('Return')
+                self.assert_background_box(theme, box)
+                self.press('Escape')
+                self.assert_background_box(theme, (7, 7, 26, 16))
+
+    def test_loading_is_text_only_in_both_themes_and_restores_scene_layers(self):
+        bitmap = self.emu.read_memory(0x1F000, 512, space='vram')
+        for theme in (0, 1):
+            if theme:
+                self.press('T')
+            self.press('4')
+            address = self.symbols['_screen_load_tiles']
+            self.emu.request('breakpoint', action='add', address=address)
+            self.press('Return', settle=False)
+            self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x41)
+            sprites = self.emu.read_memory(0x1FC00, 1024, space='vram')
+            self.assertEqual(sprites[:640], bytes(640))
+            self.assertEqual(sprites[640:648],
+                             bytes([0x80, 0x0F, 0x20, 1, 0xE8, 0, 0x0C, 0x72 | theme]))
+            self.assertEqual(sprites[648:], bytes(376))
+            self.assertEqual(self.emu.read_memory(0x1FA00, 2, space='vram'),
+                             bytes([0x12 if theme else 0, 0]))
+            index = 62 if theme else 46
+            self.assertEqual(self.emu.read_memory(0x1FA00 + index * 2, 2, space='vram'),
+                             bytes([0xEF, 0] if theme else [0xFF, 0x0F]))
+            self.emu.request('breakpoint', action='remove', address=address)
+            self.emu.advance(120)
+            self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x31)
+            self.press('Escape')
+            self.emu.advance(30)
+        self.press('7')
+        self.press('Return')
+        self.assert_menu_text(2, 'ABOUT BATTLE BLOCKS')
+        self.press('Escape')
+        self.press('Escape')
+        self.emu.advance(90)
+        self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x11)
+        self.assertEqual(self.emu.read_memory(0x1F000, 512, space='vram'), bitmap)
+
+    def test_boot_has_text_only_loading_before_audio_and_splash_reads(self):
+        with X16Agent(EMULATOR, ROM, fsroot=ROOT / 'src',
+                      options=['-prg', str(ROOT / 'src/BBLOCKS.PRG'), '-run']) as emu:
+            address = self.symbols['_sound_init']
+            emu.request('breakpoint', action='add', address=address)
+            emu.advance(180)
+            self.assertEqual(emu.read_memory(0x9F29)[0] & 0x7F, 0x41)
+            sprites = emu.read_memory(0x1FC00, 1024, space='vram')
+            self.assertEqual(sprites[:640], bytes(640))
+            self.assertEqual(sprites[640:648], bytes([0x80, 0x0F, 0x20, 1, 0xE8, 0, 0x0C, 0x72]))
+            bitmap = emu.read_memory(0x1F000, 512, space='vram')
+            self.assertEqual(bitmap[:128], bytes(128))
+            self.assertTrue(any(bitmap[128:352]))
+            self.assertTrue(all(byte >> 4 in (0, 14) and byte & 15 in (0, 14)
+                                for byte in bitmap))
+            emu.request('breakpoint', action='remove', address=address)
+            emu.advance(180)
+            self.assertEqual(emu.read_memory(0x9F29)[0] & 0x7F, 0x11)
+
+    def assert_background_box(self, theme, box):
+        left, top, width, height = box
+        for y in range(30):
+            row = self.emu.read_memory(0x18000 + y * 128, 80, space='vram')
+            for x in range(40):
+                tile, attribute = row[x * 2:x * 2 + 2]
+                if left <= x < left + width and top <= y < top + height:
+                    self.assertIn(tile, (2, 3))
+                    self.assertEqual(attribute, 0)
+                elif theme:
+                    self.assertEqual((tile, attribute), (112 + (y % 4) * 4 + x % 4, 1))
+                else:
+                    self.assertEqual((tile, attribute), (1, 0))
+
+    def test_options_volume_bounds_toggle_and_session_retention(self):
+        self.press('6')
+        self.press('Return')
+        self.assert_menu_text(2, 'AUDIO OPTIONS')
+        for _ in range(12):
+            self.press('Left')
+        self.assertEqual(self.read('_sound_music_volume'), bytes([0]))
+        self.assertEqual(self.read('_sound_music_enabled'), bytes([1]))
+        self.press('Return')
+        self.assertEqual(self.read('_sound_music_enabled'), bytes([0]))
+        self.press('Space')
+        self.assertEqual(self.read('_sound_music_volume'), bytes([0]))
+        for _ in range(12):
+            self.press('Right')
+        self.assertEqual(self.read('_sound_music_volume'), bytes([10]))
+        self.press('Down')
+        for _ in range(4):
+            self.press('Left')
+        self.press('Space')
+        self.assertEqual(self.read('_sound_effects_volume'), bytes([6]))
+        self.assertEqual(self.read('_sound_effects_enabled'), bytes([0]))
+        self.press('Down')
+        self.press('Return')
+        self.assert_cursor(18)
+        self.start(1)
+        self.press('Escape')
+        self.emu.advance(30)
+        self.press('Escape')
+        self.emu.advance(90)
+        self.press('Space')
+        self.emu.advance(30)
+        self.press('6')
+        self.press('Return')
+        self.assertEqual(self.read('_sound_music_volume'), bytes([10]))
+        self.assertEqual(self.read('_sound_effects_volume'), bytes([6]))
+        self.assertEqual(self.read('_sound_effects_enabled'), bytes([0]))
+        self.press('Escape')
+        self.assert_cursor(18)
 
     def start(self, choice, key="Return"):
         self.press(str(choice))
         self.press(key)
         self.emu.advance(30)
         for _ in range(120):
-            if self.emu.read_memory(0x9F29)[0] & 0x30 == 0x30:
+            if self.emu.read_memory(0x9F29)[0] & 0x7F == 0x31:
                 break
             self.emu.advance(1)
         else:
@@ -72,19 +224,19 @@ class MenuTests(unittest.TestCase):
         self.assertEqual(self.read("_game_mode")[0], choice - 1)
 
     def test_navigation_wraps_and_number_shortcuts_select(self):
-        self.assert_cursor(12)
+        self.assert_cursor(10)
         self.press("Up")
-        self.assert_cursor(9)
+        self.assert_cursor(8)
         self.press("Up")
-        self.assert_cursor(21)
+        self.assert_cursor(20)
         self.press("Down")
-        self.assert_cursor(9)
+        self.assert_cursor(8)
         self.press("2")
-        self.assert_cursor(12)
+        self.assert_cursor(10)
         self.press("3")
-        self.assert_cursor(15)
+        self.assert_cursor(12)
         self.press("4")
-        self.assert_cursor(18)
+        self.assert_cursor(14)
         self.assertEqual(self.tile(7, 23), 12)
 
     def test_style_option_toggles_without_starting_a_game(self):
@@ -92,10 +244,10 @@ class MenuTests(unittest.TestCase):
         classic_map = self.emu.read_memory(0x18000, 30 * 128, space="vram")
         field_tiles = self.emu.read_memory(2 * 256, 512, space="vram")
         self.press("5")
-        self.assert_cursor(21)
+        self.assert_cursor(16)
         self.press("Return")
         self.assertEqual(self.read("_screen_style"), bytes([1]))
-        self.assert_cursor(21)
+        self.assert_cursor(16)
         self.assertEqual(self.emu.read_memory(0x18000, 2, space="vram"), bytes([112, 1]))
         self.assertNotEqual(self.emu.read_memory(0x1FA00, 512, space="vram"), classic)
         self.assertEqual(self.emu.read_memory(2 * 256, 512, space="vram"), field_tiles)
@@ -201,7 +353,7 @@ class MenuTests(unittest.TestCase):
             self.assertEqual(self.read(player, 292)[0], 1)
         self.press("Escape")
         self.emu.advance(30)
-        self.assert_cursor(18)
+        self.assert_cursor(14)
 
     def prepare_clear(self, player, rows):
         field = bytearray([255] * 240)
@@ -279,7 +431,7 @@ class MenuTests(unittest.TestCase):
         self.assertEqual(self.read("_gs_player1", 292)[0], 4)
         self.press("Escape")
         self.emu.advance(30)
-        self.assert_cursor(15)
+        self.assert_cursor(12)
         self.press("Return")
         self.emu.advance(30)
         self.assertEqual(self.read("_gs_player1", 292)[0], 1)
@@ -437,7 +589,7 @@ class MenuTests(unittest.TestCase):
         self.write("_gs_player1", 297, (17).to_bytes(2, "little"))
         self.press("Escape")
         self.emu.advance(30)
-        self.assert_cursor(15)
+        self.assert_cursor(12)
         self.press("Return")
         self.emu.advance(30)
         self.assertEqual(self.read("_gs_player1", 293, 6), bytes(6))
@@ -453,7 +605,7 @@ class MenuTests(unittest.TestCase):
                 self.assertIsNone(ImageChops.difference(source.convert("RGB"), actual).getbbox())
         self.press("Return")
         self.emu.advance(30)
-        self.assert_cursor(12)
+        self.assert_cursor(10)
 
     def test_escape_skips_game_over_animation_immediately(self):
         self.start(3)
@@ -462,7 +614,7 @@ class MenuTests(unittest.TestCase):
         self.emu.advance(1)
         self.press("Escape")
         self.emu.advance(5)
-        self.assert_cursor(15)
+        self.assert_cursor(12)
         self.assertLess(self.read("_gs_player2", 324)[0], 20)
 
     def test_blocked_ai_moves_eventually_lock_instead_of_stalling(self):
@@ -636,15 +788,17 @@ class MenuTests(unittest.TestCase):
         tick = self.read("_gs_player1", 350)
         self.write("_gs_player2", 350, tick)
         self.write("_gs_player2", 348, (13).to_bytes(2, "little"))
+        # Allow one extra capped-gravity interval for HUD rendering and
+        # alignment between emulator frames and KERNAL jiffies.
         slow = self.read("_gs_player1", 10)[0]
         fast = self.read("_gs_player2", 10)[0]
-        self.emu.advance(12)
+        self.emu.advance(15)
         self.assertEqual(self.read("_gs_player1", 10)[0], slow)
         self.assertGreaterEqual(fast - self.read("_gs_player2", 10)[0], 4)
         # A large level must use the capped speed, never index beyond the table.
         self.write("_gs_player2", 348, (6553).to_bytes(2, "little"))
         fast = self.read("_gs_player2", 10)[0]
-        self.emu.advance(12)
+        self.emu.advance(15)
         self.assertGreaterEqual(fast - self.read("_gs_player2", 10)[0], 4)
         self.assertEqual(self.read("_gs_player1", 10)[0], slow)
 
@@ -671,7 +825,7 @@ class MenuTests(unittest.TestCase):
             self.assertGreater(sum(self.statistics(player)[:7]), 2)
         self.press("Escape")
         self.emu.advance(30)
-        self.assert_cursor(18)
+        self.assert_cursor(14)
 
     def test_ai_preview_tracks_bag_rollover(self):
         self.start(2)
@@ -698,7 +852,7 @@ class MenuTests(unittest.TestCase):
         self.assertEqual(self.tile(15, 14), 96 + ord("G") - ord("A"))
         self.press("Return")
         self.emu.advance(30)
-        self.assert_cursor(15)
+        self.assert_cursor(12)
 
 
 if __name__ == "__main__":

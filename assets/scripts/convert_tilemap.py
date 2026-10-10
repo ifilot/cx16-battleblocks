@@ -56,9 +56,49 @@ def main():
         for y in range(4, 10):
             for x in (11, 12):
                 data[99 * 256 + y * 16 + x] = 240
+        build_menu_punctuation(data)
     
     with open(sys.argv[2], 'wb') as f:
         f.write(data)
+
+def build_menu_punctuation(data):
+    """Use five unused base tiles for version numbers, URLs and volume labels."""
+    glyphs = (
+        ('00000', '00110', '00110', '00000', '00110', '00110', '00000'),
+        ('11001', '11010', '00010', '00100', '01000', '01011', '10011'),
+    )
+    for tile, rows in enumerate(glyphs, 39):
+        pixels = bytearray(256)
+        points = [(3 + x * 2 + dx, 1 + y * 2 + dy)
+                  for y, row in enumerate(rows) for x, bit in enumerate(row) if bit == '1'
+                  for dx in range(2) for dy in range(2)]
+        for x, y in points:
+            pixels[(y + 1) * 16 + x + 1] = 16
+        for x, y in points:
+            pixels[y * 16 + x] = 240
+        data[tile * 256:(tile + 1) * 256] = pixels
+
+    # Match the menu font's two-pixel dark outline and y=2..11 cap height.
+    # A baseline dot, centered dash and connected slash stay readable on
+    # both the light card surface and the dark Cyberpunk background.
+    shapes = (
+        {(x, y) for y in (10, 11) for x in range(6, 10)},
+        {(10 - (y - 2) // 2 * 2 + dx, y)
+         for y in range(2, 12) for dx in range(3)},
+        {(x, y) for y in (6, 7) for x in range(3, 13)},
+    )
+    for tile, points in enumerate(shapes, 36):
+        pixels = bytearray(256)
+        for x, y in points:
+            for dy in range(-2, 3):
+                for dx in range(-2, 3):
+                    px, py = x + dx, y + dy
+                    if 0 <= px < 16 and 0 <= py < 16:
+                        pixels[py * 16 + px] = 18
+        for x, y in points:
+            pixels[y * 16 + x] = 240
+        data[tile * 256:(tile + 1) * 256] = pixels
+
 
 def build_panel_frames(data):
     """Replace the eight striped frame tiles with a rim and offset shadow.

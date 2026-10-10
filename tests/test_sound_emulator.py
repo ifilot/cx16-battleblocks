@@ -13,7 +13,7 @@ ROOT = menu_tests.ROOT
 PSG = 0x1F9C0
 
 
-def music_states(data):
+def music_states(data, attenuation=4):
     """Decode PSG-only streams into snapshots, including music attenuation 4."""
     state = bytearray(40)
     states = []
@@ -30,7 +30,7 @@ def music_states(data):
             position += 1
             if command < 40:
                 if command & 3 == 2:
-                    value = (value & 0xC0) | max(0, (value & 63) - 4)
+                    value = (value & 0xC0) | max(0, (value & 63) - attenuation)
                 state[command] = value
         elif command == 0x40:
             size = data[position] & 63
@@ -77,7 +77,8 @@ class SoundTests(unittest.TestCase):
         data = (ROOT / 'assets/sound' / name).read_bytes()
         mask = int.from_bytes(data[10:12], 'little')
         registers = [r for r in range(40) if mask & (1 << (r // 4))]
-        reference, _ = music_states(data)
+        volume = self.game.read('_sound_music_volume')[0]
+        reference, _ = music_states(data, (10 - volume) * 4 if volume else 63)
         reference = [bytes(state[r] for r in registers) for state in reference]
         # Sample midway between frame interrupts to avoid partially written ticks.
         matched = None
@@ -90,12 +91,88 @@ class SoundTests(unittest.TestCase):
             samples.add(actual)
             # Sustained notes can match several adjacent ticks. Keep every
             # possible alignment until a later note distinguishes them.
-            candidates = (range(min(180, len(reference))) if matched is None else
+            # Music keeps playing through scene reveals and options input;
+            # the first sample can occur anywhere in the stream.
+            candidates = (range(len(reference)) if matched is None else
                           {i + step for i in matched for step in range(4)})
             found = {i for i in candidates if i < len(reference) and reference[i] == actual}
             self.assertTrue(found, f'{name}: PSG snapshot deviated near ticks {matched}')
             matched = found
         self.assertGreater(len(samples), 3, f'{name}: music did not advance')
+
+    def options(self):
+        self.game.press('6')
+        self.game.press('Return')
+
+    def assert_music_silent(self):
+        for _ in range(10):
+            self.emu.advance(3)
+            registers = self.emu.read_memory(PSG, 40, space='vram')
+            self.assertTrue(all(registers[v * 4 + 2] & 63 == 0 for v in range(10)))
+
+    def harddrop_volumes(self):
+        for key in ('Space', 'Q'):
+            self.emu.request('key', key=key, down=True)
+        self.emu.advance(3)
+        registers = self.emu.read_memory(PSG, 64, space='vram')
+        for key in ('Space', 'Q'):
+            self.emu.request('key', key=key, down=False)
+        return [registers[v * 4 + 2] & 63 for v in (12, 14)]
+
+    def test_music_and_effects_mute_independently_during_gameplay(self):
+        self.options()
+        self.game.press('Return')  # Music off.
+        self.assert_music_silent()
+        self.game.press('Down')
+        self.game.press('Return')  # Effects off.
+        self.game.press('Escape')
+        self.game.start(3)
+        self.assertEqual(self.harddrop_volumes(), [0, 0])
+        self.assert_music_silent()
+        self.game.press('Escape')
+        self.emu.advance(30)
+        self.options()
+        self.game.press('Return')  # Music on, effects remain off.
+        self.assert_music_progresses('TITLE.ZSM')
+        self.game.press('Return')  # Music off again.
+        self.game.press('Down')
+        self.game.press('Return')  # Effects on.
+        self.game.press('Escape')
+        self.game.start(3)
+        self.assertTrue(all(volume > 0 for volume in self.harddrop_volumes()))
+        self.assert_music_silent()
+
+    def test_volume_changes_affect_real_music_and_both_effect_slots(self):
+        self.options()
+        for _ in range(3):
+            self.game.press('Left')
+        self.assert_music_progresses('TITLE.ZSM')  # Level 6: attenuation 16.
+        self.game.press('Escape')
+        self.game.start(3)
+        full = self.harddrop_volumes()
+        self.game.press('Escape')
+        self.emu.advance(30)
+        self.options()
+        self.game.press('Down')
+        for _ in range(5):
+            self.game.press('Left')
+        self.game.press('Escape')
+        self.game.start(3)
+        quieter = self.harddrop_volumes()
+        self.assertEqual(quieter, [max(0, volume - 20) for volume in full])
+        self.assert_music_progresses('BATTLE2.ZSM')
+
+    def test_zero_volume_silences_music_and_effects(self):
+        self.options()
+        for _ in range(10):
+            self.game.press('Left')
+        self.game.press('Down')
+        for _ in range(10):
+            self.game.press('Left')
+        self.game.press('Escape')
+        self.game.start(3)
+        self.assertEqual(self.harddrop_volumes(), [0, 0])
+        self.assert_music_silent()
 
     def test_all_audio_files_loaded_across_ram_banks(self):
         header = (ROOT / 'assets/sound/music.h').read_text()

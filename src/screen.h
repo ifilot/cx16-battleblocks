@@ -148,4 +148,10 @@ void screen_redraw_playfield(uint8_t x, uint8_t* playfield);
 /* Erase one cell of a completed row inside the playfield. */
 void screen_clear_row_cell(uint8_t xoffset, uint8_t row, uint8_t column);
 
+/* Resident themed loading label; show each scene as soon as it is ready. */
+void screen_transition_init(void);
+void screen_loading_begin(void);
+void screen_transition_begin(void);
+void __fastcall__ screen_transition_end(uint8_t video);
+
 #endif // _VIDEO_H

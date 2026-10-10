@@ -60,7 +60,7 @@ def encode_splash(image):
             tilemap[offset] = tile_id & 255
             tilemap[offset + 1] = tile_id >> 8
 
-    # The tilemap starts at $1E000; its bytes must not overlap the tile set.
+    # Keep splash tiles below the tilemap at $1E000.
     if len(data) > 0x1E000:
         raise ValueError(f"Splash has {len(unique_tiles)} tiles; maximum is 960")
 

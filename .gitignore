@@ -8,3 +8,4 @@ __pycache__/
 /src/SFX.BIN
 /src/BBLOCKS.sym
 /src/BBLOCKS.map
+/src/version_generated.h
