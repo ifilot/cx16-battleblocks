@@ -65,7 +65,7 @@ class MenuTests(unittest.TestCase):
 
     def assert_cursor(self, row):
         for option in (8, 10, 12, 14, 16, 18, 20):
-            self.assertEqual(self.tile(9, option), 34 if option == row else 0)
+            self.assertEqual(self.tile(16, option), 34 if option == row else 0)
 
     def assert_menu_text(self, row, text):
         punctuation = {'.': 36, '/': 37, '-': 38, ':': 39, '%': 40, ' ': 0}
@@ -103,7 +103,28 @@ class MenuTests(unittest.TestCase):
                 self.press('Return')
                 self.assert_background_box(theme, box)
                 self.press('Escape')
-                self.assert_background_box(theme, (7, 7, 26, 16))
+                self.assert_background_box(theme, (2, 7, 10, 16), (15, 7, 23, 16))
+
+    def test_menu_shows_all_seven_pieces_in_separate_left_panel(self):
+        for theme in (0, 1):
+            if theme:
+                self.press('T')
+            self.emu.advance(30)
+            counts = {tile: 0 for tile in range(16, 23)}
+            for y in range(30):
+                row = self.emu.read_memory(0x1A000 + y * 128, 80, space='vram')
+                for x in range(40):
+                    tile = row[x * 2]
+                    if tile in counts:
+                        self.assertTrue(2 <= x < 12 and 7 <= y < 23)
+                        counts[tile] += 1
+            self.assertEqual(list(counts.values()), [4] * 7)
+            for y in (10, 11, 14, 15, 18, 19):
+                for x in range(2, 12):
+                    self.assertEqual(self.tile(x, y), 0)
+            for y in range(7, 23):
+                self.assertEqual(self.tile(7, y), 0)
+            self.assert_background_box(theme, (2, 7, 10, 16), (15, 7, 23, 16))
 
     def test_loading_is_text_only_in_both_themes_and_restores_scene_layers(self):
         bitmap = self.emu.read_memory(0x1F000, 512, space='vram')
@@ -158,13 +179,13 @@ class MenuTests(unittest.TestCase):
             emu.advance(180)
             self.assertEqual(emu.read_memory(0x9F29)[0] & 0x7F, 0x11)
 
-    def assert_background_box(self, theme, box):
-        left, top, width, height = box
+    def assert_background_box(self, theme, *boxes):
         for y in range(30):
             row = self.emu.read_memory(0x18000 + y * 128, 80, space='vram')
             for x in range(40):
                 tile, attribute = row[x * 2:x * 2 + 2]
-                if left <= x < left + width and top <= y < top + height:
+                if any(left <= x < left + width and top <= y < top + height
+                       for left, top, width, height in boxes):
                     self.assertIn(tile, (2, 3))
                     self.assertEqual(attribute, 0)
                 elif theme:
@@ -237,7 +258,7 @@ class MenuTests(unittest.TestCase):
         self.assert_cursor(12)
         self.press("4")
         self.assert_cursor(14)
-        self.assertEqual(self.tile(7, 23), 12)
+        self.assertEqual(self.tile(15, 23), 12)
 
     def test_style_option_toggles_without_starting_a_game(self):
         classic = self.emu.read_memory(0x1FA00, 512, space="vram")

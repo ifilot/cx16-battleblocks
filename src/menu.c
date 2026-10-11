@@ -8,6 +8,8 @@
 #define MENU_OPTIONS 5
 #define MENU_ABOUT 6
 #define MENU_LAST MENU_ABOUT
+#define MENU_TEXT_X 18
+#define MENU_CURSOR_X 16
 
 static void menu_draw(uint8_t selected);
 
@@ -83,7 +85,7 @@ static void menu_piece(uint8_t x, uint8_t y, uint8_t type) {
 }
 
 static void menu_style_label(void) {
-    menu_settext(19, 16, screen_style == SCREEN_STYLE_CYBERPUNK ? "CYBERPUNK" : "CLASSIC  ");
+    menu_settext(MENU_TEXT_X + 8, 16, screen_style == SCREEN_STYLE_CYBERPUNK ? "CYBERPUNK" : "CLASSIC  ");
 }
 
 static void menu_toggle_style(void) {
@@ -185,13 +187,15 @@ static void menu_draw(uint8_t selected) {
     menu_clear();
     menu_centertext(2, "BATTLE BLOCKS");
     menu_centertext(5, "MAIN MENU");
-    screen_create_lined_rectangle(7, 7, 26, 16);
-    for(i = 0; i < 7; ++i) menu_settext(11, 8 + i * 2, labels[i]);
+    screen_create_lined_rectangle(2, 7, 10, 16);
+    screen_create_lined_rectangle(15, 7, 23, 16);
+    for(i = 0; i < 7; ++i) menu_settext(MENU_TEXT_X, 8 + i * 2, labels[i]);
     menu_style_label();
-    for(i = 0; i < 4; ++i) menu_piece(29, 7 + i * 2, i + 1);
+    /* Two columns, with two empty rows between successive pairs. */
+    for(i = 0; i < 7; ++i) menu_piece(3 + (i % 2) * 6, 8 + (i / 2) * 4, i);
     menu_centertext(28, "UP DOWN SELECT  ENTER OPEN");
     menu_centertext(29, "T CHANGE STYLE  ESC BACK");
-    screen_set_tile_layer1(9, 8 + selected * 2, TILE_SELECT_CURSOR);
+    screen_set_tile_layer1(MENU_CURSOR_X, 8 + selected * 2, TILE_SELECT_CURSOR);
     menu_description(selected);
     screen_transition_end(0x31);
 }
@@ -249,8 +253,8 @@ uint8_t menu_select(uint8_t initial_mode) {
         }
         if(previous != selected) {
             sound_menu_effect(SFX_MENU_MOVE);
-            screen_set_tile_layer1(9, 8 + previous * 2, TILE_NONE);
-            screen_set_tile_layer1(9, 8 + selected * 2, TILE_SELECT_CURSOR);
+            screen_set_tile_layer1(MENU_CURSOR_X, 8 + previous * 2, TILE_NONE);
+            screen_set_tile_layer1(MENU_CURSOR_X, 8 + selected * 2, TILE_SELECT_CURSOR);
             menu_description(selected);
         }
     }

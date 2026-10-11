@@ -1,15 +1,21 @@
 # Battle Blocks
 
-Current version: **0.1.0** ([VERSION](VERSION)).
+[![GitHub Actions](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml)
+[![Version](https://img.shields.io/badge/version-v0.1.0-blue)](VERSION)
+[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue)](LICENSE)
 
-A falling-block battle game for the **Commander X16**. Play solo, challenge the computer, compete locally with a friend, or watch two computers battle in demo mode.
+A falling-block battle game for the **Commander X16**. Play solo, challenge the
+computer, compete locally with a friend, or watch two computers battle in demo
+mode.
 
-Clearing two, three, or four lines sends **one, two, or four garbage rows** to the opponent. Levels increase every ten cleared lines. Each board tracks its score, pieces, and single/double/triple/four-line clears.
+Clearing two, three, or four lines sends **one, two, or four garbage rows** to
+the opponent. Levels increase every ten cleared lines. Each board tracks its
+score, pieces, and single/double/triple/four-line clears.
 
-Choose between **Light** and **Cyberpunk** themes, with bundled music and sound effects.
-Scene changes show a built-in `LOADING...` label: white on black in Classic,
-cyan on dark navy in Cyberpunk. Each scene appears as soon as its assets are
-ready, with no animation delay or extra loading-screen files.
+Choose between **Light** and **Cyberpunk** themes, with bundled music and sound
+effects. Scene changes show a built-in `LOADING...` label: white on black in
+Classic, cyan on dark navy in Cyberpunk. Each scene appears as soon as its
+assets are ready, with no animation delay or extra loading-screen files.
 
 ## Screenshots
 
@@ -92,32 +98,6 @@ python3 -m http.server 8000 --directory build/site
 Open <http://localhost:8000>. The first site build downloads a checksum-verified
 emulator archive; subsequent builds reuse `build/site-cache/`.
 
-## GitHub Actions and releases
-
-- `build.yml` compiles the game, checks the assets and package, and uploads the
-  distribution on pushes to `master`/`develop`, pull requests, and manual runs.
-- Tags named `vX.Y.Z` must match `VERSION`. A tag such as `v0.1.0` publishes a
-  GitHub release with `CX16-BATTLEBLOCKS.ZIP` attached.
-- `pages.yml` builds and checks the browser demo in Chromium, including real
-  gameplay, keyboard input, theme changes, audio, and fullscreen rendering.
-  Pull requests are checked; pushes to `master` deploy to GitHub Pages.
-
-In repository **Settings → Pages → Build and deployment**, select
-**GitHub Actions** as the source. The deployed demo will be available at
-<https://ifilot.github.io/cx16-battleblocks/>.
-
-To run the browser checks locally:
-
-```sh
-npm install --prefix build/browser-tools playwright@1.64.0
-build/browser-tools/node_modules/.bin/playwright install chromium
-NODE_PATH="$PWD/build/browser-tools/node_modules" node tests/check_site.cjs
-```
-
-`VERSION` supplies the release package and website metadata. After changing it,
-run `make site` to regenerate both. Native AgentBridge tests also run when the
-sibling desktop emulator and ROM are available.
-
 ## Controls
 
 | Action | Player 1 | Player 2 (local battle) |
@@ -141,13 +121,6 @@ effects, matching the original playback levels.
 About shows the version from `VERSION` (currently **v0.1.0**), author **Ivo Filot**,
 the GitHub repository, and CPU, graphics, audio, and compiler details.
 
-## Refresh screenshots
+## License
 
-With the sibling emulator's AgentBridge Python API available:
-
-```sh
-make
-python3 tools/capture_screenshots.py
-```
-
-Screenshots live in `docs/screenshots/`; production game assets remain in `assets/`.
+Battle Blocks is licensed under the [GNU General Public License v3.0 or later](LICENSE).
