@@ -2,21 +2,20 @@
  *                                                                        *
  *   Author: Ivo Filot <ivo@ivofilot.nl>                                  *
  *                                                                        *
- *   CX16-BATTLE-BLOCKS is free software:                                 *
- *   you can redistribute it and/or modify it under the terms of the      *
- *   GNU General Public License as published by the Free Software         *
- *   Foundation, either version 3 of the License, or (at your option)     *
- *   any later version.                                                   *
+ *   CX16-BATTLEBLOCKS is free software: you can redistribute it and/or   *
+ *   modify it under the terms of the GNU General Public License as       *
+ *   published by the Free Software Foundation, either version 3 of the   *
+ *   License, or (at your option) any later version.                      *
  *                                                                        *
- *   CX16-BATTLE-BLOCKS is distributed in the hope that it will be useful,*
- *   but WITHOUT ANY WARRANTY; without even the implied warranty          *
- *   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.              *
+ *   CX16-BATTLEBLOCKS is distributed in the hope that it will be         *
+ *   useful, but WITHOUT ANY WARRANTY; without even the implied           *
+ *   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.     *
  *   See the GNU General Public License for more details.                 *
  *                                                                        *
  *   You should have received a copy of the GNU General Public License    *
- *   along with this program.  If not, see http://www.gnu.org/licenses/.  *
+ *   along with this program. If not, see http://www.gnu.org/licenses/.   *
  *                                                                        *
- **************************************************************************/
+ *************************************************************************/
 
 #ifndef _VIDEO_H
 #define _VIDEO_H
@@ -28,130 +27,195 @@
 
 #include "constants.h"
 
+/*
+ * VERA tile graphics, palettes and scene setup. Positions use 16x16 tile
+ * coordinates unless an API explicitly takes a pixel or VRAM address.
+ */
+
 #define SCREEN_STYLE_CLASSIC 0
 #define SCREEN_STYLE_CYBERPUNK 1
-extern uint8_t screen_style;
+extern uint8_t screen_style; // SCREEN_STYLE_CLASSIC or SCREEN_STYLE_CYBERPUNK
+
+/**
+ * @brief Restore the base palette, then apply the selected theme
+ */
 void screen_apply_style(void);
+
+/**
+ * @brief Apply the Cyberpunk splash palette when that theme is selected
+ */
 void screen_apply_title_style(void);
 
 /**
- * @brief Initialize screen
- * 
+ * @brief Configure VERA layers for the native 16-color splash
  */
 void screen_init_title();
 
 /**
- * @brief Initialize screen
- * 
+ * @brief Configure menu tile layers and save the base palette
  */
 void screen_init_menu();
 
 /**
- * @brief Initialize screen
- * 
+ * @brief Configure game tile layers and prepare themed garbage blocks
  */
 void screen_init_game();
 
 /**
- * @brief Load the tiles from file into memory
- * 
+ * @brief Load a headerless asset directly into VRAM
+ *
+ * @param filename Asset filename on the current device
+ * @param addr     Destination VRAM byte address
  */
 void screen_load_tiles(const char* filename, uint32_t addr);
 
 /**
- * @brief Create the scene background
- * 
+ * @brief Draw the tiled playfields for one or two players
+ *
+ * @param players Number of visible players, one or two
  */
 void screen_create_background(uint8_t players);
 
 /**
- * @brief Fill out the scorebox
- * 
+ * @brief Load the HUD atlas and draw the active players' score cards
+ *
+ * @param players Number of visible players, one or two
  */
 void screen_create_scorebox(uint8_t players);
 
 /**
- * @brief Draw "next piece" boxes
- * 
+ * @brief Draw the next-piece boxes and their labels
+ *
+ * @param players Number of visible players, one or two
  */
 void screen_draw_next_boxes(uint8_t players);
+
+/**
+ * @brief Update changed digits in one player's numeric HUD field
+ *
+ * @param player PLAYER1 or PLAYER2
+ * @param field  HUD_* field index
+ * @param value  Unsigned value to display
+ */
 void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value);
+
+/**
+ * @brief Draw the themed player or computer nameplate
+ *
+ * @param player   PLAYER1 or PLAYER2
+ * @param computer Nonzero for a computer nameplate; zero for a player nameplate
+ * @param number   Displayed player or computer number, one or two
+ */
 void screen_draw_player_banner(uint8_t player, uint8_t computer, uint8_t number);
 
 /**
- * @brief Created tiled background
- * 
- * @param x x-position
- * @param y y-position
- * @param w number of tiles width
- * @param h number of tiles height
+ * @brief Fill a checkerboard panel and draw its border
+ *
+ * @param x Horizontal tile coordinate
+ * @param y Vertical tile coordinate
+ * @param w Interior width in tiles
+ * @param h Interior height in tiles
  */
 void screen_create_tiled_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 
 /**
- * @brief Created lined background
- * 
- * @param x x-position
- * @param y y-position
- * @param w number of tiles width
- * @param h number of tiles height
+ * @brief Fill a lined panel, clear its foreground and draw its border
+ *
+ * @param x Horizontal tile coordinate
+ * @param y Vertical tile coordinate
+ * @param w Interior width in tiles
+ * @param h Interior height in tiles
  */
 void screen_create_lined_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 
 /**
- * @brief Clear rectangular area on layer1
- * 
- * @param x x-position
- * @param y y-position
- * @param w number of tiles width
- * @param h number of tiles height
+ * @brief Clear foreground tiles inside a panel and redraw its border
+ *
+ * @param x Horizontal tile coordinate
+ * @param y Vertical tile coordinate
+ * @param w Interior width in tiles
+ * @param h Interior height in tiles
  */
 void screen_clear_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 
 /**
- * @brief Created lined background
- * 
- * @param x x-position
- * @param y y-position
- * @param w number of tiles width
- * @param h number of tiles height
+ * @brief Draw a border immediately outside a rectangle
+ *
+ * @param x Horizontal tile coordinate
+ * @param y Vertical tile coordinate
+ * @param w Interior width in tiles
+ * @param h Interior height in tiles
  */
 void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 
 /**
- * @brief Fill the specified tilemap layer with the same tile.
+ * @brief Fill the entire 64-by-64 tilemap layer with one tile
  *
- * @param layer Layer index (0 or 1)
- * @param tile_id Tile index to fill the layer with
+ * @param layer   LAYER0 or LAYER1
+ * @param tile_id Tile index used for every cell
  */
 extern void __fastcall__ screen_fill_layer(uint8_t layer, uint8_t tile_id);
 
 /**
- * @brief Position a single tile on the screen for layer1
- * 
- * @param x x-position
- * @param y y-position
- * @param tile tile_id
+ * @brief Set a foreground tile and clear its extended tile attributes
+ *
+ * @param x    Horizontal tile coordinate
+ * @param y    Vertical tile coordinate
+ * @param tile Base tile index
  */
 void screen_set_tile_layer1(uint8_t x, uint8_t y, uint8_t tile);
 
+/**
+ * @brief Write a tile and its attribute byte to the background layer
+ *
+ * @param x   Horizontal tile coordinate
+ * @param y   Vertical tile coordinate
+ * @param val Tile byte to write
+ * @param col Tile attribute byte
+ */
 void screen_draw_character(uint8_t x, uint8_t y, uint8_t val, uint8_t col);
 
 /**
- * @brief Redraw the playing field based on array
- * 
- * @param x 
- * @param playfield 
+ * @brief Redraw the twenty visible rows from board occupancy
+ *
+ * @param x         Horizontal tile coordinate of the playfield's left edge
+ * @param playfield Row-major board cells, starting at the bottom row; 0xFF is empty
  */
 void screen_redraw_playfield(uint8_t x, uint8_t* playfield);
 
-/* Erase one cell of a completed row inside the playfield. */
+/**
+ * @brief Erase one visible playfield cell during a row wipe
+ *
+ * Erase one cell of a completed row inside the playfield.
+ *
+ * @param xoffset Horizontal tile coordinate of the playfield's left edge
+ * @param row     Board row, 0..19, counted upward from the bottom
+ * @param column  Board column, 0..9
+ */
 void screen_clear_row_cell(uint8_t xoffset, uint8_t row, uint8_t column);
 
-/* Resident themed loading label; show each scene as soon as it is ready. */
+/**
+ * @brief Prepare the resident loading label and initial loading screen
+ *
+ * Resident themed loading label; show each scene as soon as it is ready.
+ */
 void screen_transition_init(void);
+
+/**
+ * @brief Show the themed loading label on a plain background
+ */
 void screen_loading_begin(void);
+
+/**
+ * @brief Hide scene layers while the next scene is being prepared
+ */
 void screen_transition_begin(void);
+
+/**
+ * @brief Restore the requested VERA display-enable bits
+ *
+ * @param video VERA display control byte to restore
+ */
 void __fastcall__ screen_transition_end(uint8_t video);
 
 #endif // _VIDEO_H

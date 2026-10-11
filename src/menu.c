@@ -1,8 +1,32 @@
+/**************************************************************************
+ *                                                                        *
+ *   Author: Ivo Filot <ivo@ivofilot.nl>                                  *
+ *                                                                        *
+ *   CX16-BATTLEBLOCKS is free software: you can redistribute it and/or   *
+ *   modify it under the terms of the GNU General Public License as       *
+ *   published by the Free Software Foundation, either version 3 of the   *
+ *   License, or (at your option) any later version.                      *
+ *                                                                        *
+ *   CX16-BATTLEBLOCKS is distributed in the hope that it will be         *
+ *   useful, but WITHOUT ANY WARRANTY; without even the implied           *
+ *   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.     *
+ *   See the GNU General Public License for more details.                 *
+ *                                                                        *
+ *   You should have received a copy of the GNU General Public License    *
+ *   along with this program. If not, see http://www.gnu.org/licenses/.   *
+ *                                                                        *
+ *************************************************************************/
+
 #include "menu.h"
 #include <string.h>
 #include "game.h"
 #include "sound.h"
 #include "version_generated.h"
+
+/*
+ * Tile-font menus, theme selection, audio options and application details.
+ * The selected game mode is returned to the application scene loop.
+ */
 
 #define MENU_STYLE 4
 #define MENU_OPTIONS 5
@@ -11,8 +35,14 @@
 #define MENU_TEXT_X 18
 #define MENU_CURSOR_X 16
 
+/**
+ * @brief Draw the main menu, all seven pieces and the selection cursor
+ */
 static void menu_draw(uint8_t selected);
 
+/**
+ * @brief Clear menu layers and apply the selected theme
+ */
 static void menu_clear(void) {
     screen_transition_begin();
     screen_fill_layer(LAYER0, TILE_BG0);
@@ -20,6 +50,13 @@ static void menu_clear(void) {
     screen_fill_layer(LAYER1, TILE_NONE);
 }
 
+/**
+ * @brief Draw text in the menu font, clipped to the 40-by-30 viewport
+ *
+ * @param x   Horizontal tile coordinate
+ * @param y   Vertical tile coordinate
+ * @param str Null-terminated text; letters are converted to uppercase
+ */
 void menu_settext(uint8_t x, uint8_t y, const char* str) {
     uint8_t ch;
     uint32_t map_base_addr = MAPBASE1 + (y << 7) + (x << 1);
@@ -29,7 +66,7 @@ void menu_settext(uint8_t x, uint8_t y, const char* str) {
     VERA.address = map_base_addr;
     VERA.address_hi = map_base_addr >> 16;
     VERA.address_hi |= (1 << 5);
-    
+
     while(*str != 0 && x++ < 40) {
         ch = *str++;
         if(ch >= 'a' && ch <= 'z') {
@@ -56,11 +93,20 @@ void menu_settext(uint8_t x, uint8_t y, const char* str) {
     }
 }
 
+/**
+ * @brief Center menu text horizontally on the requested row
+ *
+ * @param y   Vertical tile coordinate
+ * @param str Null-terminated text; letters are converted to uppercase
+ */
 void menu_centertext(uint8_t y, const char* str) {
     uint8_t length = strlen(str);
     menu_settext(length < 40 ? (40 - length) / 2 : 0, y, str);
 }
 
+/**
+ * @brief Show the selected option's description and relevant controls
+ */
 static void menu_description(uint8_t mode) {
     static const char* const descriptions[] = {
         "CLEAR LINES  BEAT YOUR SCORE", "BATTLE THE COMPUTER",
@@ -75,6 +121,9 @@ static void menu_description(uint8_t mode) {
     else if(mode == MENU_STYLE) menu_centertext(25, "ENTER TO CHANGE STYLE");
 }
 
+/**
+ * @brief Draw a tetromino in its starting orientation
+ */
 static void menu_piece(uint8_t x, uint8_t y, uint8_t type) {
     uint8_t i;
     for(i = 0; i < 4; i++) {
@@ -84,10 +133,16 @@ static void menu_piece(uint8_t x, uint8_t y, uint8_t type) {
     }
 }
 
+/**
+ * @brief Refresh the selected theme label in the main menu
+ */
 static void menu_style_label(void) {
     menu_settext(MENU_TEXT_X + 8, 16, screen_style == SCREEN_STYLE_CYBERPUNK ? "CYBERPUNK" : "CLASSIC  ");
 }
 
+/**
+ * @brief Switch theme and refresh its palette, background and label
+ */
 static void menu_toggle_style(void) {
     sound_menu_effect(SFX_MENU_SELECT);
     screen_style ^= 1;
@@ -97,6 +152,9 @@ static void menu_toggle_style(void) {
     screen_transition_end(0x31);
 }
 
+/**
+ * @brief Show application details until a return key is pressed
+ */
 static void menu_about(void) {
     uint8_t key, i;
     static const char* const details[] = {
@@ -118,6 +176,9 @@ static void menu_about(void) {
     sound_menu_effect(SFX_MENU_BACK);
 }
 
+/**
+ * @brief Refresh the audio enable flags and percentage labels
+ */
 static void menu_options_values(void) {
     static const char volumes[11][5] = {
         "0%  ", "10% ", "20% ", "30% ", "40% ", "50% ",
@@ -129,6 +190,9 @@ static void menu_options_values(void) {
     menu_settext(28, 14, volumes[sound_effects_volume]);
 }
 
+/**
+ * @brief Run the audio options menu and retain settings for this session
+ */
 static void menu_options(void) {
     uint8_t selected = 0;
     uint8_t previous, key;
@@ -178,6 +242,9 @@ static void menu_options(void) {
     }
 }
 
+/**
+ * @brief Draw the main menu, all seven pieces and the selection cursor
+ */
 static void menu_draw(uint8_t selected) {
     uint8_t i;
     static const char* const labels[] = {
@@ -200,6 +267,13 @@ static void menu_draw(uint8_t selected) {
     screen_transition_end(0x31);
 }
 
+/**
+ * @brief Run the main menu and return a game mode or MENU_BACK
+ *
+ * @param initial_mode Zero-based initial menu selection, 0..6
+ *
+ * @return Selected GAME_MODE_* value, or MENU_BACK on Escape
+ */
 uint8_t menu_select(uint8_t initial_mode) {
     uint8_t selected = initial_mode;
     uint8_t previous;

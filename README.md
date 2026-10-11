@@ -98,6 +98,12 @@ python3 -m http.server 8000 --directory build/site
 Open <http://localhost:8000>. The first site build downloads a checksum-verified
 emulator archive; subsequent builds reuse `build/site-cache/`.
 
+Serve `build/site/`, the complete generated website. The `site/` directory
+contains source files; screenshots, splash artwork, and emulator/game assets
+are added during `make site`. Opening `site/index.html` directly leaves those
+assets missing. Use the local HTTP server above so the emulator can fetch its
+files; opening the generated page through `file://` can block those requests.
+
 ## Controls
 
 | Action | Player 1 | Player 2 (local battle) |

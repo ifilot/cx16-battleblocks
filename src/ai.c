@@ -1,10 +1,40 @@
+/**************************************************************************
+ *                                                                        *
+ *   Author: Ivo Filot <ivo@ivofilot.nl>                                  *
+ *                                                                        *
+ *   CX16-BATTLEBLOCKS is free software: you can redistribute it and/or   *
+ *   modify it under the terms of the GNU General Public License as       *
+ *   published by the Free Software Foundation, either version 3 of the   *
+ *   License, or (at your option) any later version.                      *
+ *                                                                        *
+ *   CX16-BATTLEBLOCKS is distributed in the hope that it will be         *
+ *   useful, but WITHOUT ANY WARRANTY; without even the implied           *
+ *   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.     *
+ *   See the GNU General Public License for more details.                 *
+ *                                                                        *
+ *   You should have received a copy of the GNU General Public License    *
+ *   along with this program. If not, see http://www.gnu.org/licenses/.   *
+ *                                                                        *
+ *************************************************************************/
+
 #include "ai.h"
+
+/*
+ * Incremental computer-player search. Rank current placements, then search
+ * the next piece for the four best candidates using board snapshots.
+ */
 
 struct PlayFieldEvaluation pfeval;
 struct PlayFieldEvaluation pfeval_player1;
 
 static const uint16_t column_bits[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
 
+/**
+ * @brief Snapshot the board and reset the search for the active and next pieces
+ *
+ * @param gamestate  Player state to read or update
+ * @param evaluation Search state belonging to this player
+ */
 void ai_prepare(struct GameState* gamestate, struct PlayFieldEvaluation* evaluation) {
     uint8_t row, col;
     uint8_t type = gamestate->piece_type;
@@ -43,7 +73,10 @@ void ai_prepare(struct GameState* gamestate, struct PlayFieldEvaluation* evaluat
     evaluation->next_type = gamestate->piece_list.bag1.pieces[gamestate->piece_list.bag1.idx];
 }
 
-/* Integer heuristic, with wide intermediates: tall stacks must not wrap at
+/**
+ * @brief Compute the board heuristic using wide integer intermediates
+ *
+ * Integer heuristic, with wide intermediates: tall stacks must not wrap at
  * 65536. Keep the existing weights and nonlinear penalty for deep wells.
  */
 static uint32_t ai_score(uint16_t height, uint16_t bumpiness,
@@ -57,6 +90,9 @@ static uint32_t ai_score(uint16_t height, uint16_t bumpiness,
 
 static const uint8_t bumpweights[] = {0, 1, 2, 3, 4, 8, 16, 32, 64, 75, 100, 125};
 
+/**
+ * @brief Find the lowest unobstructed placement from the column heights
+ */
 static uint8_t ai_landing(const uint8_t* heights, const uint8_t shape[4][2],
                           uint8_t offset) {
     uint8_t i, landing = 0;
@@ -68,7 +104,12 @@ static uint8_t ai_landing(const uint8_t* heights, const uint8_t shape[4][2],
     return landing;
 }
 
-/* Collapse full rows and rebuild the profile without changing the live board. */
+/**
+ * @brief Collapse full rows and rebuild a simulated board profile
+ *
+ * Collapse full rows and rebuild the profile without changing the live
+ * board.
+ */
 static uint8_t ai_profile(uint16_t* rows, uint8_t* heights, uint8_t* counts,
                           uint8_t* occupied) {
     uint8_t row, dest = 0, col, lines = 0;
@@ -95,6 +136,9 @@ static uint8_t ai_profile(uint16_t* rows, uint8_t* heights, uint8_t* counts,
     return lines;
 }
 
+/**
+ * @brief Score height, holes, wells and completed lines in a board profile
+ */
 static uint32_t ai_profile_score(const uint8_t* heights, uint8_t occupied,
                                  uint8_t lines) {
     uint8_t i;
@@ -111,6 +155,9 @@ static uint32_t ai_profile_score(const uint8_t* heights, uint8_t occupied,
     return ai_score(height, bumpiness, height - occupied, lines);
 }
 
+/**
+ * @brief Simulate a placement; return the maximum score if it exceeds the board
+ */
 static uint32_t ai_placement_score(const uint16_t* rows, const uint8_t* base_heights,
                                    const uint8_t* base_counts, uint8_t occupied,
                                    const uint8_t shape[4][2], uint8_t offset, uint8_t lines) {
@@ -137,7 +184,11 @@ static uint32_t ai_placement_score(const uint16_t* rows, const uint8_t* base_hei
     return ai_profile_score(heights, occupied, lines);
 }
 
-/* Keep the four best immediate placements, preserving deterministic ties. */
+/**
+ * @brief Keep the four best immediate placements with deterministic ties
+ *
+ * Keep the four best immediate placements, preserving deterministic ties.
+ */
 static void ai_shortlist(struct PlayFieldEvaluation* e, uint8_t candidate,
                           uint32_t score) {
     uint8_t i, j;
@@ -151,6 +202,9 @@ static void ai_shortlist(struct PlayFieldEvaluation* e, uint8_t candidate,
     e->candidates[i] = candidate;
 }
 
+/**
+ * @brief Build the simulated board for the current shortlisted candidate
+ */
 static void ai_prepare_future(struct PlayFieldEvaluation* e) {
     uint8_t candidate = e->candidates[e->candidate_id];
     uint8_t rot = candidate / 10, offset = candidate % 10, i, landing, lines;
@@ -168,6 +222,14 @@ static void ai_prepare_future(struct PlayFieldEvaluation* e) {
     e->next_offset = 0;
 }
 
+/**
+ * @brief Advance one bounded search step; return whether the search is done
+ *
+ * @param gamestate Player state to read or update
+ * @param e         Search state belonging to this player
+ *
+ * @return One when both search stages are finished; zero while work remains
+ */
 uint8_t ai_calculate_next_score(struct GameState* gamestate,
                                 struct PlayFieldEvaluation* e) {
     uint8_t rot, offset;
@@ -224,6 +286,14 @@ uint8_t ai_calculate_next_score(struct GameState* gamestate,
     return 0;
 }
 
+/**
+ * @brief Choose an AI_* action toward the best planned placement
+ *
+ * @param gamestate  Player state to read or update
+ * @param evaluation Search state belonging to this player
+ *
+ * @return AI_ROTATE, AI_MOVEMENT_LEFT, AI_MOVEMENT_RIGHT or AI_DROP
+ */
 uint8_t ai_determine_movement(struct GameState* gamestate, struct PlayFieldEvaluation* evaluation) {
     uint8_t i;
     uint8_t leftmost_x = 255;

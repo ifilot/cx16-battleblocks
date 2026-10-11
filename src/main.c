@@ -2,21 +2,20 @@
  *                                                                        *
  *   Author: Ivo Filot <ivo@ivofilot.nl>                                  *
  *                                                                        *
- *   CX16-BATTLE-BLOCKS is free software:                                 *
- *   you can redistribute it and/or modify it under the terms of the      *
- *   GNU General Public License as published by the Free Software         *
- *   Foundation, either version 3 of the License, or (at your option)     *
- *   any later version.                                                   *
+ *   CX16-BATTLEBLOCKS is free software: you can redistribute it and/or   *
+ *   modify it under the terms of the GNU General Public License as       *
+ *   published by the Free Software Foundation, either version 3 of the   *
+ *   License, or (at your option) any later version.                      *
  *                                                                        *
- *   CX16-BATTLE-BLOCKS is distributed in the hope that it will be useful,*
- *   but WITHOUT ANY WARRANTY; without even the implied warranty          *
- *   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.              *
+ *   CX16-BATTLEBLOCKS is distributed in the hope that it will be         *
+ *   useful, but WITHOUT ANY WARRANTY; without even the implied           *
+ *   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.     *
  *   See the GNU General Public License for more details.                 *
  *                                                                        *
  *   You should have received a copy of the GNU General Public License    *
- *   along with this program.  If not, see http://www.gnu.org/licenses/.  *
+ *   along with this program. If not, see http://www.gnu.org/licenses/.   *
  *                                                                        *
- **************************************************************************/
+ *************************************************************************/
 
 #include <stdio.h>
 #include "screen.h"
@@ -25,8 +24,16 @@
 #include "menu.h"
 #include "sound.h"
 
+/*
+ * Application entry point and scene loop. Coordinates the title, menus,
+ * matches and results while keeping keyboard input and AI work responsive.
+ */
+
 static uint8_t game_tiles_loaded;
 
+/**
+ * @brief Load the splash and wait for Enter or Space
+ */
 static void show_title(void) {
     uint8_t key;
     game_tiles_loaded = 0;
@@ -43,6 +50,9 @@ static void show_title(void) {
     sound_menu_effect(SFX_START);
 }
 
+/**
+ * @brief Load shared tile assets when needed and prepare the menu layers
+ */
 static void show_menu(void) {
     screen_transition_begin();
     if(!game_tiles_loaded) {
@@ -56,6 +66,9 @@ static void show_menu(void) {
     sound_title();
 }
 
+/**
+ * @brief Prepare the selected game mode, HUD and player banners
+ */
 static void show_game(uint8_t mode) {
     uint8_t players = mode == GAME_MODE_SINGLE ? 1 : 2;
     screen_transition_begin();
@@ -92,6 +105,9 @@ static void show_game(uint8_t mode) {
     sound_battle();
 }
 
+/**
+ * @brief Advance one AI search step and apply a rate-limited movement
+ */
 static void step_computer(struct GameState* player,
                           struct PlayFieldEvaluation* evaluation, uint8_t* last_tick) {
     uint8_t movement, old_x, old_rotation, search_done;
@@ -122,6 +138,9 @@ static void step_computer(struct GameState* player,
     *last_tick = game_get_tick();
 }
 
+/**
+ * @brief Run a match; return one when Escape requests the menu
+ */
 static uint8_t play_game(void) {
     uint8_t key;
     uint8_t cpu1_tick = game_get_tick();
@@ -147,6 +166,9 @@ static uint8_t play_game(void) {
     return 0;
 }
 
+/**
+ * @brief Advance the loss animation and wait for a return to the menu
+ */
 static void show_result(void) {
     uint8_t key;
     sound_result(game_mode != GAME_MODE_SINGLE && game_mode != GAME_MODE_DEMO &&
@@ -175,6 +197,9 @@ static void show_result(void) {
     } while(key != KEYCODE_RETURN && key != KEYCODE_SPACE && key != KEYCODE_ESCAPE);
 }
 
+/**
+ * @brief Initialize graphics and audio, then run the application scene loop
+ */
 void main(void) {
     uint8_t mode = GAME_MODE_COMPUTER;
     uint8_t selected;

@@ -65,7 +65,6 @@ def build_menu_punctuation(data):
     """Use five unused base tiles for version numbers, URLs and volume labels."""
     glyphs = (
         ('00000', '00110', '00110', '00000', '00110', '00110', '00000'),
-        ('11001', '11010', '00010', '00100', '01000', '01011', '10011'),
     )
     for tile, rows in enumerate(glyphs, 39):
         pixels = bytearray(256)
@@ -86,8 +85,15 @@ def build_menu_punctuation(data):
         {(10 - (y - 2) // 2 * 2 + dx, y)
          for y in range(2, 12) for dx in range(3)},
         {(x, y) for y in (6, 7) for x in range(3, 13)},
+        # Percent: two hollow rings and a continuous two-pixel diagonal.
+        {(left + x, top + y)
+         for left, top in ((3, 2), (9, 8))
+         for y, row in enumerate(('0110', '1001', '1001', '0110'))
+         for x, bit in enumerate(row) if bit == '1'} |
+        {(11 - (y - 2) * 8 // 9 + dx, y)
+         for y in range(2, 12) for dx in range(2)},
     )
-    for tile, points in enumerate(shapes, 36):
+    for tile, points in zip((36, 37, 38, 40), shapes):
         pixels = bytearray(256)
         for x, y in points:
             for dy in range(-2, 3):

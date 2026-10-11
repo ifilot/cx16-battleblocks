@@ -2,27 +2,31 @@
  *                                                                        *
  *   Author: Ivo Filot <ivo@ivofilot.nl>                                  *
  *                                                                        *
- *   CX16-BATTLE-BLOCKS is free software:                                 *
- *   you can redistribute it and/or modify it under the terms of the      *
- *   GNU General Public License as published by the Free Software         *
- *   Foundation, either version 3 of the License, or (at your option)     *
- *   any later version.                                                   *
+ *   CX16-BATTLEBLOCKS is free software: you can redistribute it and/or   *
+ *   modify it under the terms of the GNU General Public License as       *
+ *   published by the Free Software Foundation, either version 3 of the   *
+ *   License, or (at your option) any later version.                      *
  *                                                                        *
- *   CX16-BATTLE-BLOCKS is distributed in the hope that it will be useful,*
- *   but WITHOUT ANY WARRANTY; without even the implied warranty          *
- *   of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.              *
+ *   CX16-BATTLEBLOCKS is distributed in the hope that it will be         *
+ *   useful, but WITHOUT ANY WARRANTY; without even the implied           *
+ *   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.     *
  *   See the GNU General Public License for more details.                 *
  *                                                                        *
  *   You should have received a copy of the GNU General Public License    *
- *   along with this program.  If not, see http://www.gnu.org/licenses/.  *
+ *   along with this program. If not, see http://www.gnu.org/licenses/.   *
  *                                                                        *
- **************************************************************************/
+ *************************************************************************/
 
 #include "screen.h"
 #include "hud_generated.h"
 #include "banner_generated.h"
 #include <stdlib.h>
 #include <string.h>
+
+/*
+ * VERA tile graphics, palettes and scene setup. Positions use 16x16 tile
+ * coordinates unless an API explicitly takes a pixel or VRAM address.
+ */
 
 uint8_t screen_style = SCREEN_STYLE_CLASSIC;
 static uint8_t original_palette[512];
@@ -46,11 +50,18 @@ static const struct PaletteColor cyberpunk_palette[] = {
     {195, 0x136}, {185, 0x9CF}, {199, 0x48F}, {197, 0x25A},
     {253, 0x606}, {241, 0xF9F}, {255, 0xF2C}, {254, 0xB18}
 };
+
+/**
+ * @brief Write one 12-bit RGB color to the VERA palette
+ */
 static void screen_palette_color(uint8_t index, uint16_t rgb) {
     vpoke((uint8_t)rgb, 0x1FA00UL + (uint16_t)index * 2);
     vpoke((uint8_t)(rgb >> 8), 0x1FA01UL + (uint16_t)index * 2);
 }
 
+/**
+ * @brief Replace wallpaper tiles while preserving panel surfaces
+ */
 static void screen_style_background(void) {
     uint8_t x, y, low, attribute, row_tile;
     uint16_t address;
@@ -81,6 +92,9 @@ static void screen_style_background(void) {
     }
 }
 
+/**
+ * @brief Restore the base palette, then apply the selected theme
+ */
 void screen_apply_style(void) {
     uint16_t i;
     uint8_t video = VERA.display.video;
@@ -107,6 +121,9 @@ void screen_apply_style(void) {
     screen_transition_end(video);
 }
 
+/**
+ * @brief Apply the Cyberpunk splash palette when that theme is selected
+ */
 void screen_apply_title_style(void) {
     uint8_t i;
     /* Same 16-color metropolis artwork, with a neon night palette. */
@@ -125,11 +142,14 @@ static uint8_t hud_pixels[10];
 static char hud_last_digits[2][75];
 static uint32_t hud_last_values[2][14];
 static uint8_t hud_value_ready[2][14];
+
+/**
+ * @brief Copy count glyph pixels through the selected VERA data port
+ */
 extern void __fastcall__ screen_hud_copy(const uint8_t* pixels, uint8_t count);
 
 /**
- * @brief Initialize screen
- * 
+ * @brief Configure VERA layers for the native 16-color splash
  */
 void screen_init_title() {
     uint16_t i;
@@ -154,7 +174,7 @@ void screen_init_title() {
     VERA.layer0.mapbase  = TITLE_MAPBASE >> 9;
     VERA.layer0.hscroll  = 0;
     VERA.layer0.vscroll  = 0;
-    
+
     // layer 1
     // On this layer, the values that the user fills in for the tiles are shown
     VERA.layer1.config   = (1 << 3);                        // T256C mode
@@ -165,8 +185,7 @@ void screen_init_title() {
 }
 
 /**
- * @brief Initialize screen
- * 
+ * @brief Configure menu tile layers and save the base palette
  */
 void screen_init_menu() {
     screen_apply_style();
@@ -181,7 +200,7 @@ void screen_init_menu() {
     VERA.layer0.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
     VERA.layer0.tilebase = (TILEBASE >> 9) | 0x03;          // 16x16px tiles
     VERA.layer0.mapbase  = MAPBASE0 >> 9;                   // upper 8 bits
-    
+
     // layer 1
     // On this layer, the values that the user fills in for the tiles are shown
     VERA.layer1.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
@@ -192,7 +211,10 @@ void screen_init_menu() {
     VERA.display.video = 0x41;           // VGA and loading label
 }
 
-/* Reuse the block silhouette and bevels with the existing grey palette.
+/**
+ * @brief Build two grey garbage tiles from an existing block silhouette
+ *
+ * Reuse the block silhouette and bevels with the existing grey palette.
  * These two tiles occupy unused space immediately after the game tileset.
  */
 static void screen_create_garbage_tiles(void) {
@@ -213,8 +235,7 @@ static void screen_create_garbage_tiles(void) {
 }
 
 /**
- * @brief Initialize screen
- * 
+ * @brief Configure game tile layers and prepare themed garbage blocks
  */
 void screen_init_game() {
     screen_apply_style();
@@ -232,7 +253,7 @@ void screen_init_game() {
     VERA.layer0.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
     VERA.layer0.tilebase = (TILEBASE >> 9) | 0x03;          // 16x16px tiles
     VERA.layer0.mapbase  = MAPBASE0 >> 9;                   // upper 8 bits
-    
+
     // layer 1
     // On this layer, the values that the user fills in for the tiles are shown
     VERA.layer1.config   = 0x03 | (1 << 4) | (1 << 6);      // 8 bpp color depth; 64 x 64 map
@@ -244,8 +265,10 @@ void screen_init_game() {
 }
 
 /**
- * @brief Load the tiles from file into video memory
- * 
+ * @brief Load a headerless asset directly into VRAM
+ *
+ * @param filename Asset filename on the current device
+ * @param addr     Destination VRAM byte address
  */
 void screen_load_tiles(const char* filename, uint32_t addr) {
     cbm_k_setnam(filename);
@@ -254,8 +277,9 @@ void screen_load_tiles(const char* filename, uint32_t addr) {
 }
 
 /**
- * @brief Create the scene background
- * 
+ * @brief Draw the tiled playfields for one or two players
+ *
+ * @param players Number of visible players, one or two
  */
 void screen_create_background(uint8_t players) {
     // playfield
@@ -266,7 +290,14 @@ void screen_create_background(uint8_t players) {
 
 }
 
-/* The static HUD uses deduplicated tiles; numeric tiles belong to one field. */
+/**
+ * @brief Load the HUD atlas and draw the active players' score cards
+ *
+ * The static HUD uses deduplicated tiles; numeric tiles belong to one
+ * field.
+ *
+ * @param players Number of visible players, one or two
+ */
 void screen_create_scorebox(uint8_t players) {
     uint8_t row, col, limit = players == 1 ? 20 : 40;
     uint16_t tile, address;
@@ -291,7 +322,11 @@ void screen_create_scorebox(uint8_t players) {
     }
 }
 
-/* Store one native glyph; double pixels only when drawing the large score. */
+/**
+ * @brief Copy one glyph row at the HUD field's pixel scale
+ *
+ * Store one native glyph; double pixels only when drawing the large score.
+ */
 static void screen_hud_digit_row(uint8_t* pixels, const uint8_t* glyph,
                                  uint8_t row, uint8_t scale) {
     uint8_t col, color;
@@ -307,7 +342,15 @@ static void screen_hud_digit_row(uint8_t* pixels, const uint8_t* glyph,
     }
 }
 
-/* Numeric fields update only changed glyphs; all other pixels stay cached. */
+/**
+ * @brief Update changed digits in one player's numeric HUD field
+ *
+ * Numeric fields update only changed glyphs; all other pixels stay cached.
+ *
+ * @param player PLAYER1 or PLAYER2
+ * @param field  HUD_* field index
+ * @param value  Unsigned value to display
+ */
 void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value) {
     const struct HudField* f = &hud_fields[field];
     char text[11], ch;
@@ -352,7 +395,15 @@ void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value) {
     hud_value_ready[player][field] = 1;
 }
 
-/* Banners reuse a theme atlas; all lettering and icons are already baked. */
+/**
+ * @brief Draw the themed player or computer nameplate
+ *
+ * Banners reuse a theme atlas; all lettering and icons are already baked.
+ *
+ * @param player   PLAYER1 or PLAYER2
+ * @param computer Nonzero for a computer nameplate; zero for a player nameplate
+ * @param number   Displayed player or computer number, one or two
+ */
 void screen_draw_player_banner(uint8_t player, uint8_t computer, uint8_t number) {
     uint8_t row, col, variant = (computer ? 2 : 0) + (number == 2 ? 1 : 0);
     uint16_t address;
@@ -377,8 +428,9 @@ void screen_draw_player_banner(uint8_t player, uint8_t computer, uint8_t number)
 }
 
 /**
- * @brief Draw "next piece" boxes
- * 
+ * @brief Draw the next-piece boxes and their labels
+ *
+ * @param players Number of visible players, one or two
  */
 void screen_draw_next_boxes(uint8_t players) {
     uint8_t i;
@@ -396,12 +448,12 @@ void screen_draw_next_boxes(uint8_t players) {
 }
 
 /**
- * @brief Clear rectangular area on layer1
- * 
- * @param x x-position
- * @param y y-position
- * @param w number of tiles width
- * @param h number of tiles height
+ * @brief Clear foreground tiles inside a panel and redraw its border
+ *
+ * @param x Horizontal tile coordinate
+ * @param y Vertical tile coordinate
+ * @param w Interior width in tiles
+ * @param h Interior height in tiles
  */
 void screen_clear_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
     uint8_t i,j;
@@ -425,12 +477,12 @@ void screen_clear_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
 }
 
 /**
- * @brief Created tiles background
- * 
- * @param x x-position
- * @param y y-position
- * @param w number of tiles width
- * @param h number of tiles height
+ * @brief Fill a checkerboard panel and draw its border
+ *
+ * @param x Horizontal tile coordinate
+ * @param y Vertical tile coordinate
+ * @param w Interior width in tiles
+ * @param h Interior height in tiles
  */
 void screen_create_tiled_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
     uint8_t i,j;
@@ -454,12 +506,12 @@ void screen_create_tiled_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
 }
 
 /**
- * @brief Created tiles background
- * 
- * @param x x-position
- * @param y y-position
- * @param w number of tiles width
- * @param h number of tiles height
+ * @brief Fill a lined panel, clear its foreground and draw its border
+ *
+ * @param x Horizontal tile coordinate
+ * @param y Vertical tile coordinate
+ * @param w Interior width in tiles
+ * @param h Interior height in tiles
  */
 void screen_create_lined_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
     uint8_t i,j;
@@ -483,12 +535,12 @@ void screen_create_lined_rectangle(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
 }
 
 /**
- * @brief Created lined background
- * 
- * @param x x-position
- * @param y y-position
- * @param w number of tiles width
- * @param h number of tiles height
+ * @brief Draw a border immediately outside a rectangle
+ *
+ * @param x Horizontal tile coordinate
+ * @param y Vertical tile coordinate
+ * @param w Interior width in tiles
+ * @param h Interior height in tiles
  */
 void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
     uint8_t i;
@@ -507,11 +559,11 @@ void screen_create_border(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
 }
 
 /**
- * @brief Position a single tile on the screen for layer1
- * 
- * @param x x-position
- * @param y y-position
- * @param tile tile_id
+ * @brief Set a foreground tile and clear its extended tile attributes
+ *
+ * @param x    Horizontal tile coordinate
+ * @param y    Vertical tile coordinate
+ * @param tile Base tile index
  */
 void screen_set_tile_layer1(uint8_t x, uint8_t y, uint8_t tile) {
     uint16_t address = (uint16_t)MAPBASE1 + ((uint16_t)y << 7) + ((uint16_t)x << 1);
@@ -522,11 +574,12 @@ void screen_set_tile_layer1(uint8_t x, uint8_t y, uint8_t tile) {
 }
 
 /**
- * @brief Position a single tile on the screen for layer1
- * 
- * @param x x-position
- * @param y y-position
- * @param tile tile_id
+ * @brief Write a tile and its attribute byte to the background layer
+ *
+ * @param x   Horizontal tile coordinate
+ * @param y   Vertical tile coordinate
+ * @param val Tile byte to write
+ * @param col Tile attribute byte
  */
 void screen_draw_character(uint8_t x, uint8_t y, uint8_t val, uint8_t col) {
     uint32_t map_base_addr = MAPBASE0 + (y << 6) + (x << 1);
@@ -538,10 +591,10 @@ void screen_draw_character(uint8_t x, uint8_t y, uint8_t val, uint8_t col) {
 }
 
 /**
- * @brief Redraw the playing field based on array
- * 
- * @param x 
- * @param playfield 
+ * @brief Redraw the twenty visible rows from board occupancy
+ *
+ * @param x         Horizontal tile coordinate of the playfield's left edge
+ * @param playfield Row-major board cells, starting at the bottom row; 0xFF is empty
  */
 void screen_redraw_playfield(uint8_t x, uint8_t* playfield) {
     uint8_t row, col, type;
@@ -557,6 +610,13 @@ void screen_redraw_playfield(uint8_t x, uint8_t* playfield) {
     }
 }
 
+/**
+ * @brief Erase one visible playfield cell during a row wipe
+ *
+ * @param xoffset Horizontal tile coordinate of the playfield's left edge
+ * @param row     Board row, 0..19, counted upward from the bottom
+ * @param column  Board column, 0..9
+ */
 void screen_clear_row_cell(uint8_t xoffset, uint8_t row, uint8_t column) {
     screen_set_tile_layer1(xoffset + column, 27 - row, TILE_NONE);
 }

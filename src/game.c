@@ -1,16 +1,39 @@
+/**************************************************************************
+ *                                                                        *
+ *   Author: Ivo Filot <ivo@ivofilot.nl>                                  *
+ *                                                                        *
+ *   CX16-BATTLEBLOCKS is free software: you can redistribute it and/or   *
+ *   modify it under the terms of the GNU General Public License as       *
+ *   published by the Free Software Foundation, either version 3 of the   *
+ *   License, or (at your option) any later version.                      *
+ *                                                                        *
+ *   CX16-BATTLEBLOCKS is distributed in the hope that it will be         *
+ *   useful, but WITHOUT ANY WARRANTY; without even the implied           *
+ *   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.     *
+ *   See the GNU General Public License for more details.                 *
+ *                                                                        *
+ *   You should have received a copy of the GNU General Public License    *
+ *   along with this program. If not, see http://www.gnu.org/licenses/.   *
+ *                                                                        *
+ *************************************************************************/
+
 #include "game.h"
 #include "sound.h"
 #include <stdio.h>
+
+/*
+ * Match rules and per-player updates: movement, gravity, row clears,
+ * scoring and garbage attacks. Animated clears advance in the main loop.
+ */
 
 struct GameState gs_player1;
 struct GameState gs_player2;
 uint8_t game_mode;
 
 /**
- * @brief Initialize the game
- * 
- * Resets GameState structs for both players
- * 
+ * @brief Reset both player states and start a match in the requested mode
+ *
+ * @param mode One of the GAME_MODE_* values
  */
 void game_init(uint8_t mode) {
     game_mode = mode;
@@ -18,7 +41,7 @@ void game_init(uint8_t mode) {
     gs_player1.player = PLAYER1;
     gs_player2.player = PLAYER2;
 
-    // initialize upcoming tetris pieces
+    // Prepare the current and next bags for both players.
     bos_generate(&gs_player1.piece_list.bag1);
     bos_generate(&gs_player1.piece_list.bag2);
     bos_generate(&gs_player2.piece_list.bag1);
@@ -71,7 +94,10 @@ void game_init(uint8_t mode) {
     if(mode != GAME_MODE_SINGLE) game_print_score(&gs_player2);
 }
 
-/* Attacks wait for a spawn boundary; they never move a falling piece or
+/**
+ * @brief Queue the completed clear's attack on the opposing board
+ *
+ * Attacks wait for a spawn boundary; they never move a falling piece or
  * interfere with a board's row wipe. Cap the queue at a whole field.
  */
 static void game_send_garbage(struct GameState* sender) {
@@ -85,6 +111,9 @@ static void game_send_garbage(struct GameState* sender) {
     PLAYER_SOUND(sender, SFX_GARBAGE_SEND);
 }
 
+/**
+ * @brief Apply queued rows at a spawn boundary and detect overflow
+ */
 static void game_receive_garbage(struct GameState* gamestate) {
     uint8_t rows = gamestate->pending_garbage;
     uint8_t row, col, hole, overflow = 0;
@@ -117,9 +146,9 @@ static void game_receive_garbage(struct GameState* gamestate) {
 }
 
 /**
- * @brief Take the next piece from the bag and introduce it to the game
- * 
- * @param gamestate player GameState
+ * @brief Apply queued garbage and spawn the next piece from the bag
+ *
+ * @param gamestate Player state to read or update
  */
 void game_piece_new(struct GameState* gamestate) {
     uint8_t type;
@@ -164,9 +193,9 @@ void game_piece_new(struct GameState* gamestate) {
 }
 
 /**
- * @brief Update the list of next pieces
- * 
- * @param gamestate player GameState
+ * @brief Redraw the next-piece preview from the current bag
+ *
+ * @param gamestate Player state to read or update
  */
 void game_update_next_pieces(struct GameState* gamestate) {
     uint8_t xoffset = gamestate->player == PLAYER1 ? 14 : 34;
@@ -180,11 +209,11 @@ void game_update_next_pieces(struct GameState* gamestate) {
 }
 
 /**
- * @brief Place piece at position (x,y)
- * 
- * @param x x-position of the piece
- * @param y y-position of the piece
- * @param type piece type
+ * @brief Draw a four-by-three preview of a tetromino
+ *
+ * @param x    Horizontal tile coordinate
+ * @param y    Vertical tile coordinate
+ * @param type Tetromino type, 0..6 (I, O, T, S, Z, J, L)
  */
 void game_place_piece(uint8_t x, uint8_t y, uint8_t type) {
     uint8_t i,j;
@@ -204,9 +233,9 @@ void game_place_piece(uint8_t x, uint8_t y, uint8_t type) {
 }
 
 /**
- * @brief Try to move a piece downwards
- * 
- * @param gamestate  player GameState
+ * @brief Move down one row, or lock the piece if it cannot descend
+ *
+ * @param gamestate Player state to read or update
  */
 void game_piece_down(struct GameState* gamestate) {
     uint8_t i;
@@ -239,9 +268,9 @@ void game_piece_down(struct GameState* gamestate) {
 }
 
 /**
- * @brief Try to move a piece left or right
- * 
- * @param gamestate player GameState
+ * @brief Move left or right if every destination cell is free
+ *
+ * @param gamestate Player state to read or update
  * @param direction MOVE_LEFT or MOVE_RIGHT
  */
 void game_piece_move(struct GameState* gamestate, int8_t direction) {
@@ -265,9 +294,9 @@ void game_piece_move(struct GameState* gamestate, int8_t direction) {
 }
 
 /**
- * @brief Function to store piece on the game field upon a collision
- * 
- * @param gamestate  player GameState
+ * @brief Store the active piece in the board occupancy array
+ *
+ * @param gamestate Player state to read or update
  */
 void game_store_piece_playfield(struct GameState* gamestate) {
     uint8_t i,x,y;
@@ -280,16 +309,16 @@ void game_store_piece_playfield(struct GameState* gamestate) {
 }
 
 /**
- * @brief Apply a movement of a piece, assume that validy is already checked
- * 
- * @param gamestate player GameState
- * @param dx x-increment
- * @param dy y-increment
+ * @brief Apply a previously validated movement and redraw the piece
+ *
+ * @param gamestate Player state to read or update
+ * @param dx        Horizontal offset in board cells
+ * @param dy        Vertical offset in board cells; negative moves downward
  */
 void game_piece_apply_move(struct GameState* gamestate, int8_t dx, int8_t dy) {
     uint8_t i;
 
-    // Step 1: Remove piece
+    // Preserve the previous position so the redraw can erase it.
     memcpy(&gamestate->piece_old_position[0][0], &gamestate->piece_position[0][0], 8);
 
     // Step 2: Apply movement
@@ -305,9 +334,9 @@ void game_piece_apply_move(struct GameState* gamestate, int8_t dx, int8_t dy) {
 }
 
 /**
- * @brief Try to move a piece left or right
- * 
- * @param gamestate player GameState
+ * @brief Rotate the piece if the destination is within bounds and free
+ *
+ * @param gamestate Player state to read or update
  */
 void game_piece_rotate(struct GameState* gamestate) {
     int8_t new_coords[4][2];
@@ -353,9 +382,9 @@ void game_piece_rotate(struct GameState* gamestate) {
 }
 
 /**
- * @brief Drop the current piece
- * 
- * @param gamestate player GameState
+ * @brief Hard-drop to the shadow position and lock the piece
+ *
+ * @param gamestate Player state to read or update
  */
 void game_piece_drop(struct GameState* gamestate) {
     PLAYER_SOUND(gamestate, SFX_HARDDROP);
@@ -371,9 +400,9 @@ void game_piece_drop(struct GameState* gamestate) {
 }
 
 /**
- * @brief Draw the active blocks (both shadow and regular)
- * 
- * @param gamestate 
+ * @brief Erase old positions and draw the landing shadow and active piece
+ *
+ * @param gamestate Player state to read or update
  */
 void game_draw_block(struct GameState* gamestate) {
     uint8_t i,x,y;
@@ -417,8 +446,11 @@ void game_draw_block(struct GameState* gamestate) {
 }
 
 /**
- * @brief Increment the game by one tick
- * 
+ * @brief Get the gravity interval in 60 Hz ticks, capped at level 13
+ *
+ * @param level Zero-based level, increasing every ten cleared lines
+ *
+ * @return Ticks per row, from 49 at level zero to 3 at level 13 and above
  */
 uint8_t game_gravity_interval(uint16_t level) {
     /* 60 Hz ticks per row. Preserve the old opening pace, then accelerate.
@@ -428,6 +460,9 @@ uint8_t game_gravity_interval(uint16_t level) {
     return level >= sizeof(intervals) ? 3 : intervals[level];
 }
 
+/**
+ * @brief Advance one player's gravity without blocking input or animations
+ */
 static void game_update_gravity(struct GameState* player) {
     uint8_t now = game_get_tick();
     if(player->state != GAME_STATE_RUN) {
@@ -440,15 +475,18 @@ static void game_update_gravity(struct GameState* player) {
     }
 }
 
+/**
+ * @brief Advance gravity for each active player when its interval expires
+ */
 void game_step() {
     game_update_gravity(&gs_player1);
     if(game_mode != GAME_MODE_SINGLE && game_is_running()) game_update_gravity(&gs_player2);
 }
 
 /**
- * @brief Check whether any rows need purging and remove
- *        them from the game. Drop all rows above this row.
- * 
+ * @brief Find complete visible rows and start their nonblocking wipe
+ *
+ * @param gamestate Player state to read or update
  */
 void game_purge_rows(struct GameState* gamestate) {
     uint8_t row, col;
@@ -472,6 +510,9 @@ void game_purge_rows(struct GameState* gamestate) {
     gamestate->clear_tick = game_get_tick();
 }
 
+/**
+ * @brief Compact wiped rows, award score and garbage, then spawn a piece
+ */
 static void game_finish_clear(struct GameState* gamestate) {
     uint8_t row, destination = 0;
     uint16_t old_level = gamestate->level;
@@ -514,6 +555,9 @@ static void game_finish_clear(struct GameState* gamestate) {
     game_check_over(gamestate);
 }
 
+/**
+ * @brief Erase the next cell in a player's completed-row wipe
+ */
 static void game_update_clear(struct GameState* gamestate) {
     uint8_t now;
     if(gamestate->state != GAME_STATE_CLEAR) return;
@@ -534,6 +578,9 @@ static void game_update_clear(struct GameState* gamestate) {
     screen_clear_row_cell(gamestate->xoffset, gamestate->clear_row, gamestate->clear_column++);
 }
 
+/**
+ * @brief Advance row wipes and finish clears without delaying either player
+ */
 void game_update_clears(void) {
     game_update_clear(&gs_player1);
     if(game_mode != GAME_MODE_SINGLE && gs_player1.state != GAME_STATE_LOST) {
@@ -542,8 +589,9 @@ void game_update_clears(void) {
 }
 
 /**
- * @brief Show drop ouline
- * 
+ * @brief Recalculate the landing position for the current piece
+ *
+ * @param gamestate Player state to read or update
  */
 void game_update_shadow(struct GameState* gamestate) {
     uint8_t i, height, x, relative_y, landing = 0, min = 23;
@@ -572,9 +620,9 @@ void game_update_shadow(struct GameState* gamestate) {
 }
 
 /**
- * @brief Parse keyboard input for the game
- * 
- * @param keycode keyboard input keycode
+ * @brief Apply a KERNAL keycode to the human players allowed by the mode
+ *
+ * @param keycode Keycode returned by cbm_k_getin()
  */
 void game_parse_keyboard(uint8_t keycode) {
     if(game_mode == GAME_MODE_DEMO) return;
@@ -618,9 +666,9 @@ void game_parse_keyboard(uint8_t keycode) {
 }
 
 /**
- * @brief Get the current tick
- * 
- * @return uint8_t current tick
+ * @brief Read the low byte of the KERNAL 60 Hz clock
+ *
+ * @return Low clock byte; wraps every 256 ticks
  */
 uint8_t game_get_tick() {
     static uint8_t t;
@@ -630,8 +678,9 @@ uint8_t game_get_tick() {
 }
 
 /**
- * @brief Check whether game is over
- * 
+ * @brief Mark the player as lost if blocks occupy the hidden spawn rows
+ *
+ * @param gamestate Player state to read or update
  */
 void game_check_over(struct GameState* gamestate) {
     uint8_t i;
@@ -648,15 +697,20 @@ void game_check_over(struct GameState* gamestate) {
 }
 
 /**
- * @brief Start the nonblocking game-over fill animation
- * 
- * @param gamestate 
+ * @brief Initialize the nonblocking game-over fill animation
+ *
+ * @param gamestate Player state to read or update
  */
 void game_loop_blockfill(struct GameState* gamestate) {
     gamestate->lose_row = 0;
     gamestate->lose_tick = game_get_tick();
 }
 
+/**
+ * @brief Advance the game-over fill by one row when its tick expires
+ *
+ * @param gamestate Player state to read or update
+ */
 void game_update_blockfill(struct GameState* gamestate) {
     uint8_t i, now;
     if(gamestate->state != GAME_STATE_LOST || gamestate->lose_row >= 20) return;
@@ -670,9 +724,9 @@ void game_update_blockfill(struct GameState* gamestate) {
 }
 
 /**
- * @brief Check whether game is still running
- * 
- * @return uint8_t 1 if still running, 0 otherwise
+ * @brief Check whether all players required by the mode are still active
+ *
+ * @return One while required players are running or clearing; zero after a loss
  */
 uint8_t game_is_running() {
     return (gs_player1.state == GAME_STATE_RUN || gs_player1.state == GAME_STATE_CLEAR) &&
@@ -681,9 +735,9 @@ uint8_t game_is_running() {
 }
 
 /**
- * @brief Print game score
- * 
- * @param gamestate 
+ * @brief Update the score, level and cleared-line HUD fields
+ *
+ * @param gamestate Player state to read or update
  */
 void game_print_score(struct GameState* gamestate) {
     screen_draw_hud_number(gamestate->player, HUD_SCORE, gamestate->score);
