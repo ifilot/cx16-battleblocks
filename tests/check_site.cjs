@@ -111,6 +111,8 @@ assert ImageChops.difference(actual.crop(box1),expected.crop(box2)).getbbox() is
     }
     await matches('splash','docs/screenshots/splash.png',[0,0,640,480]);
     await pad(1,9); // Controller 2 Start dismisses the splash.
+    // The saved menu artwork shows VS CPU; boot now selects Solo.
+    await page.locator('#canvas').press('2',{delay:120});
     await matches('menu','docs/screenshots/menu.png',[0,0,640,368]);
     await page.locator('#canvas').press('5',{delay:120});
     await page.locator('#canvas').press('Enter',{delay:120});

@@ -3,6 +3,25 @@
 Release history reconstructed from Git tags, commits, and the changes in the
 working tree. Versions are listed newest first.
 
+## 0.2.3 — 2026-10-11
+
+### Added
+
+- **Easy**, **Normal**, and **Hard** computer difficulty in Options, retained
+  for the session. Easy is the default; slower movement and a wait before
+  hard drops give the opponent more time to react. Hard keeps the old speed.
+
+### Changed
+
+- Release ZIPs name the executable **AUTOBOOT.X16**, so users can launch it
+  with **BOOT**, or automatically from the SD card root. The package still
+  contains only four files; browser and recording tools use the same filename.
+- The first main-menu item, **Solo**, is selected on startup. Returning from
+  a match still selects the mode that was just played.
+- Expanded the options menu to include computer difficulty alongside audio.
+- Compacted nonrecursive menu and match code using static local storage to
+  fit the new options while preserving the software stack reservation.
+
 ## 0.2.2 — 2026-10-11
 
 ### Changed

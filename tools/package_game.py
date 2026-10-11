@@ -13,7 +13,17 @@ GRAPHICS_FILES = (
     'NAME-L.DAT', 'NAME-LX.DAT', 'NAME-C.DAT', 'NAME-CX.DAT', 'NAME-F.DAT', 'NAME-FX.DAT',
 )
 
-RUNTIME_FILES = ('BBLOCKS.PRG', 'GRAPHICS.DAT', 'AUDIO.BIN')
+RUNTIME_SOURCES = {
+    'AUTOBOOT.X16': 'BBLOCKS.PRG',
+    'GRAPHICS.DAT': 'GRAPHICS.DAT',
+    'AUDIO.BIN': 'AUDIO.BIN',
+}
+RUNTIME_FILES = tuple(RUNTIME_SOURCES)
+
+
+def runtime_source(name):
+    """Map a distributed filename to its build output."""
+    return ROOT / 'src' / RUNTIME_SOURCES[name]
 
 
 def version():
@@ -26,13 +36,13 @@ def version():
 def main():
     release = version()
     for name in RUNTIME_FILES:
-        if not (ROOT / 'src' / name).is_file():
+        if not runtime_source(name).is_file():
             raise FileNotFoundError(f'Missing {name}; run make first')
     destination = ROOT / 'build/CX16-BATTLEBLOCKS.ZIP'
     destination.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(destination, 'w', compression=ZIP_DEFLATED) as archive:
         for name in RUNTIME_FILES:
-            archive.write(ROOT / 'src' / name, name)
+            archive.write(runtime_source(name), name)
         archive.writestr('VERSION.txt', release + '\n')
     with ZipFile(destination) as archive:
         if archive.testzip() is not None:

@@ -103,15 +103,20 @@ static void show_game(uint8_t mode) {
 static void step_computer(struct GameState* player,
                           struct PlayFieldEvaluation* evaluation, uint8_t* last_tick) {
     uint8_t movement, old_x, old_rotation, search_done;
+    static const uint8_t move_ticks[] = {12, 6, 2};
+    static const uint8_t drop_ticks[] = {60, 30, 2};
     if(player->state != GAME_STATE_RUN) return;
     search_done = ai_calculate_next_score(player, evaluation);
     if((!search_done && evaluation->best_rot_id == 0xFF) ||
-       (uint8_t)(game_get_tick() - *last_tick) < 2) return;
+       (uint8_t)(game_get_tick() - *last_tick) < move_ticks[ai_difficulty]) return;
     old_x = player->piece_position[0][0];
     old_rotation = player->piece_rot_idx;
     movement = ai_determine_movement(player, evaluation);
     // Steer during lookahead, but commit a hard drop after the full search.
     if(!search_done && movement == AI_DROP) return;
+    /* Give the opponent time to react after the computer finishes steering. */
+    if(movement == AI_DROP &&
+       (uint8_t)(game_get_tick() - *last_tick) < drop_ticks[ai_difficulty]) return;
     switch(movement) {
         case AI_MOVEMENT_LEFT: game_piece_move(player, -1); break;
         case AI_MOVEMENT_RIGHT: game_piece_move(player, 1); break;
@@ -204,7 +209,7 @@ static void show_result(void) {
  * @brief Initialize graphics and audio, then run the application scene loop
  */
 void main(void) {
-    uint8_t mode = GAME_MODE_COMPUTER;
+    uint8_t mode = GAME_MODE_SINGLE;
     uint8_t selected;
     VERA.display.video = 0x41;
     screen_transition_init();

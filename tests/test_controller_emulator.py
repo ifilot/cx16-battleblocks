@@ -42,7 +42,10 @@ class ControllerTests(unittest.TestCase):
 
     def test_both_controllers_navigate_apply_and_cancel_menus(self):
         self.install_pads()
-        self.tap(2,low=8)  # Up: computer -> solo.
+        self.assertEqual(self.tile(16,8),34)
+        self.tap(2,low=8)  # Up wraps from solo to About.
+        self.assertEqual(self.tile(16,20),34)
+        self.tap(2,low=4)
         self.assertEqual(self.tile(16,8),34)
         self.tap(1,low=4)
         self.assertEqual(self.tile(16,10),34)

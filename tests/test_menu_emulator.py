@@ -391,11 +391,11 @@ class MenuTests(unittest.TestCase):
     def test_options_volume_bounds_toggle_and_session_retention(self):
         self.press('6')
         self.press('Return')
-        self.assert_menu_text(2, 'AUDIO OPTIONS')
+        self.assert_menu_text(2, 'OPTIONS')
         self.press('Up')
-        self.assertEqual(self.tile(5, 18), 34)
+        self.assertEqual(self.tile(5, 20), 34)
         self.press('Down')
-        self.assertEqual(self.tile(5, 10), 34)
+        self.assertEqual(self.tile(5, 8), 34)
         for _ in range(12):
             self.press('Left')
         self.assertEqual(self.read('_sound_music_volume'), bytes([0]))
@@ -413,6 +413,7 @@ class MenuTests(unittest.TestCase):
         self.press('Space')
         self.assertEqual(self.read('_sound_effects_volume'), bytes([6]))
         self.assertEqual(self.read('_sound_effects_enabled'), bytes([0]))
+        self.press('Down')
         self.press('Down')
         self.press('Return')
         self.assert_cursor(18)
@@ -442,6 +443,8 @@ class MenuTests(unittest.TestCase):
         self.assertEqual(self.read("_game_mode")[0], choice - 1)
 
     def test_navigation_wraps_and_number_shortcuts_select(self):
+        self.assert_cursor(8)
+        self.press("Down")
         self.assert_cursor(10)
         self.press("Up")
         self.assert_cursor(8)
@@ -636,7 +639,7 @@ class MenuTests(unittest.TestCase):
         self.emu.advance(360)
         for player in ("_gs_player1", "_gs_player2"):
             self.assertNotEqual(self.read(player, 51, 240), bytes([255]) * 240)
-            self.assertEqual(self.read(player, 292)[0], 1)
+            self.assertIn(self.read(player, 292)[0], (1, 4))  # Running or clearing.
         self.press("Escape")
         self.emu.advance(30)
         self.assert_cursor(14)
@@ -744,6 +747,8 @@ class MenuTests(unittest.TestCase):
             self.assertEqual(int.from_bytes(self.read(player, 297, 2), "little"), 4)
 
     def test_computer_keeps_playing_during_human_clear(self):
+        # A drop inside this short wipe window requires the original fast pace.
+        self.write("_ai_difficulty", 0, bytes([2]))
         self.start(2)
         self.prepare_clear("_gs_player1", range(4))
         self.press("Space")
@@ -899,7 +904,7 @@ class MenuTests(unittest.TestCase):
         palette = self.emu.read_memory(0x1FA00, 512, space='vram')
         address = self.symbols['_screen_load_tiles']
         self.emu.request('breakpoint', action='add', address=address)
-        for key, heading in (('6', 'AUDIO OPTIONS'), ('7', 'ABOUT BATTLE BLOCKS')) * 2:
+        for key, heading in (('6', 'OPTIONS'), ('7', 'ABOUT BATTLE BLOCKS')) * 2:
             self.press(key)
             self.press('Return')
             self.assert_menu_text(2, heading)
@@ -919,6 +924,7 @@ class MenuTests(unittest.TestCase):
         self.assertLess(self.read("_gs_player2", 324)[0], 20)
 
     def test_blocked_ai_moves_eventually_lock_instead_of_stalling(self):
+        self.write("_ai_difficulty", 0, bytes([2]))
         self.start(2)
         field = bytearray([255] * 240)
         field[10 * 10 + 4] = 2  # Blocks the planned left shift of an O.
@@ -1130,6 +1136,7 @@ class MenuTests(unittest.TestCase):
         self.assert_cursor(14)
 
     def test_ai_preview_tracks_bag_rollover(self):
+        self.write("_ai_difficulty", 0, bytes([2]))
         self.start(2)
         self.write("_gs_player2", 33 + 6, bytes([4, 6]))  # Last current-bag piece, index 6.
         self.write("_gs_player2", 41, bytes([6, 5, 4, 3, 2, 1, 0, 0]))

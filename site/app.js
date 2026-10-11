@@ -20,7 +20,7 @@ function fail(message) {
 // The release's Emscripten runtime reads this global before it starts.
 var Module = {
   canvas,
-  arguments: ['-prg', 'BBLOCKS.PRG', '-run', '-ram', '512', '-scale', '1', '-quality', 'nearest', '-keymap', 'en-us', '-joy1', '-joy2'],
+  arguments: ['-prg', 'AUTOBOOT.X16', '-run', '-ram', '512', '-scale', '1', '-quality', 'nearest', '-keymap', 'en-us', '-joy1', '-joy2'],
   locateFile: name => `emulator/${name}`,
   preRun: [function () {
     ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = '#canvas';

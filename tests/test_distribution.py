@@ -11,13 +11,13 @@ import test_menu_emulator as menu_tests
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
-from package_game import RUNTIME_FILES, version
+from package_game import RUNTIME_FILES, runtime_source, version
 from bundle_resources import graphics_bundle, audio_bundle
 
 
 class DistributionTests(unittest.TestCase):
     @unittest.skipUnless(menu_tests.AVAILABLE, 'Sibling X16 AgentBridge emulator and ROM required')
-    def test_extracted_package_runs_all_five_styles(self):
+    def test_extracted_package_autoboots_and_runs_all_five_styles(self):
         original_agent = menu_tests.X16Agent
         with TemporaryDirectory(prefix='battleblocks-package-') as directory:
             directory = Path(directory)
@@ -25,8 +25,8 @@ class DistributionTests(unittest.TestCase):
                 archive.extractall(directory)
 
             def packaged_agent(executable, rom, **kwargs):
-                return original_agent(executable, rom, fsroot=directory,
-                                      options=['-prg', str(directory / 'BBLOCKS.PRG'), '-run'])
+                # Start at reset with no executable or run flag supplied.
+                return original_agent(executable, rom, fsroot=directory)
 
             game = menu_tests.MenuTests()
             with patch.object(menu_tests, 'X16Agent', packaged_agent):
@@ -44,6 +44,34 @@ class DistributionTests(unittest.TestCase):
                         game.emu.advance(30)
                         game.press('Escape')
                         game.press('T')
+                finally:
+                    game.doCleanups()
+
+    @unittest.skipUnless(menu_tests.AVAILABLE, 'Sibling X16 AgentBridge emulator and ROM required')
+    def test_boot_command_starts_package_in_subdirectory(self):
+        original_agent = menu_tests.X16Agent
+        with TemporaryDirectory(prefix='battleblocks-boot-') as directory:
+            directory = Path(directory)
+            with ZipFile(ROOT / 'build/CX16-BATTLEBLOCKS.ZIP') as archive:
+                archive.extractall(directory / 'GAME')
+
+            def packaged_agent(executable, rom, **kwargs):
+                emu = original_agent(executable, rom, fsroot=directory)
+                try:
+                    emu.advance(180)
+                    emu.request('paste', text='DOS"CD:GAME"\rBOOT\r')
+                    return emu
+                except BaseException:
+                    emu.close()
+                    raise
+
+            game = menu_tests.MenuTests()
+            with patch.object(menu_tests, 'X16Agent', packaged_agent):
+                try:
+                    game.setUp()
+                    game.assert_cursor(8)
+                    game.start(1)
+                    self.assertEqual(game.read('_game_mode'), bytes([0]))
                 finally:
                     game.doCleanups()
 
@@ -81,7 +109,7 @@ class DistributionTests(unittest.TestCase):
             self.assertEqual(set(archive.namelist()), set(RUNTIME_FILES) | {'VERSION.txt'})
             self.assertEqual(archive.read('VERSION.txt').decode().strip(), version())
             for name in RUNTIME_FILES:
-                self.assertEqual(archive.read(name), (ROOT / 'src' / name).read_bytes())
+                self.assertEqual(archive.read(name), runtime_source(name).read_bytes())
 
     @unittest.skipUnless((ROOT / 'build/site/build.json').is_file(), 'Run make site first')
     def test_site_has_the_same_runtime_files_and_version(self):
@@ -92,7 +120,7 @@ class DistributionTests(unittest.TestCase):
         manifest = json.loads((site / 'game/manifest.json').read_text())
         self.assertEqual(set(manifest['resources']), set(RUNTIME_FILES))
         for name in RUNTIME_FILES:
-            self.assertEqual((site / 'game' / name).read_bytes(), (ROOT / 'src' / name).read_bytes())
+            self.assertEqual((site / 'game' / name).read_bytes(), runtime_source(name).read_bytes())
 
 
 if __name__ == '__main__':

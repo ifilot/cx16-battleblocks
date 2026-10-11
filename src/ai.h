@@ -27,6 +27,9 @@
 #include "pieces.h"
 #include "gamestate.h"
 
+/* Session setting: Easy (0), Normal (1), Hard (2). */
+extern uint8_t ai_difficulty;
+
 /*
  * Incremental computer-player search. Rank current placements, then search
  * the next piece for the four best candidates using board snapshots.

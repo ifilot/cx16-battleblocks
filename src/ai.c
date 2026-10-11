@@ -19,6 +19,8 @@
 
 #include "ai.h"
 
+uint8_t ai_difficulty;
+
 /*
  * Incremental computer-player search. Rank current placements, then search
  * the next piece for the four best candidates using board snapshots.

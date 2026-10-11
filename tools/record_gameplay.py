@@ -8,7 +8,7 @@ import tempfile
 
 from PIL import Image
 
-from package_game import RUNTIME_FILES
+from package_game import RUNTIME_FILES, runtime_source
 
 ROOT = Path(__file__).resolve().parents[1]
 FPS = 10
@@ -44,9 +44,9 @@ def record(agent_class, emulator, rom, symbols, theme, output):
     with tempfile.TemporaryDirectory(prefix='battleblocks-demo-') as directory:
         runtime = Path(directory)
         for name in RUNTIME_FILES:
-            shutil.copy2(ROOT / 'src' / name, runtime / name)
+            shutil.copy2(runtime_source(name), runtime / name)
         with agent_class(emulator, rom, fsroot=runtime,
-                         options=['-prg', str(runtime / 'BBLOCKS.PRG'), '-run']) as emu:
+                         options=['-prg', str(runtime / 'AUTOBOOT.X16'), '-run']) as emu:
             def read(name, offset=0, size=1):
                 return emu.read_memory(symbols['_' + name] + offset, size)
 

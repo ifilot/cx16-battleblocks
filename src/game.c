@@ -21,6 +21,9 @@
 #include "sound.h"
 #include <stdio.h>
 
+/* Match updates are nonrecursive and run only in the main loop. */
+#pragma static-locals(on)
+
 /*
  * Match rules and per-player updates: movement, gravity, row clears,
  * scoring and garbage attacks. Animated clears advance in the main loop.

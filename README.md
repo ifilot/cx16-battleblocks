@@ -1,7 +1,7 @@
 # Battle Blocks
 
 [![GitHub Actions](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml)
-[![Version](https://img.shields.io/badge/version-v0.2.2-blue)](VERSION)
+[![Version](https://img.shields.io/badge/version-v0.2.3-blue)](VERSION)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue)](LICENSE)
 
 **Build your stack. Break theirs.** Battle Blocks is a falling-block game for
@@ -110,6 +110,20 @@ quit-confirmation dialog with **No** selected. Use the arrow keys and
 Enter/Space to choose, **Y/N** for a direct answer, or **Escape** to cancel.
 The dialog freezes the match and restores the previous pause state on cancel.
 
+Open **6 · Options** and select **Computer** to choose **Easy**, **Normal**, or
+**Hard** with Left/Right. Enter/Space cycles the setting. Easy is the default;
+the setting lasts for the session and applies to versus-computer and demo modes.
+
+| Computer difficulty | Time between moves/rotations | Wait before hard drop |
+| --- | --- | --- |
+| Easy | 200 ms | 1 second |
+| Normal | 100 ms | 500 ms |
+| Hard | 33 ms | 33 ms (the original speed) |
+
+The hard-drop wait starts from the computer's last action. All levels use the
+same placement search and normal gravity; slower levels give you more time to
+react and limit how quickly the computer can place pieces and send attacks.
+
 SNES controllers work alongside the keyboard: port 1 controls player 1 and
 port 2 controls player 2 in local battles. Use the D-pad to move and soft-drop,
 **Up or B/Y** to rotate, and **A/X** to hard-drop. **Start** pauses or resumes
@@ -121,9 +135,13 @@ the desktop emulator yourself, include `-joy1 -joy2`.
 
 ## Play and build
 
-Run `BBLOCKS.PRG` on your Commander X16 or a compatible emulator, keeping
-`GRAPHICS.DAT` and `AUDIO.BIN` alongside it. The browser demo also runs the
-actual game, with sound, fullscreen, and touch controls. Its website includes
+Extract the release ZIP into a folder on your Commander X16's SD card, open
+that folder, and type `BOOT` to start the game. The executable is named
+`AUTOBOOT.X16`; keep `GRAPHICS.DAT` and `AUDIO.BIN` alongside it. When these
+files are in the SD card's root directory, the game also starts automatically
+on boot. Compatible emulators can load and run `AUTOBOOT.X16` directly.
+The browser demo also runs the actual game, with sound, fullscreen, and touch
+controls. Its website includes
 interactive previews of all five styles.
 
 ### Build from source
@@ -144,7 +162,7 @@ make run EMU=/path/to/x16emu ROM=/path/to/rom.bin
 ```
 
 `make` builds without launching. `make dist` creates the ready-to-copy package
-at `build/CX16-BATTLEBLOCKS.ZIP`, containing just `BBLOCKS.PRG`,
+at `build/CX16-BATTLEBLOCKS.ZIP`, containing just `AUTOBOOT.X16`,
 `GRAPHICS.DAT`, `AUDIO.BIN`, and `VERSION.txt`. All five styles, music, and
 sound effects are included. Individual generated assets stay in the source
 build; graphics are streamed from one indexed bundle and audio is loaded from

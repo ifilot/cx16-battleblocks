@@ -18,14 +18,19 @@
  *************************************************************************/
 
 #include "menu.h"
+#include "ai.h"
 #include "input.h"
 #include <string.h>
 #include "game.h"
 #include "sound.h"
 #include "version_generated.h"
 
+/* Menu functions are synchronous and nonrecursive. Static locals keep this
+ * UI within resident RAM without reducing the reserved software stack. */
+#pragma static-locals(on)
+
 /*
- * Tile-font menus, theme selection, audio options and application details.
+ * Tile-font menus, theme selection, session options and application details.
  * The selected game mode is returned to the application scene loop.
  */
 
@@ -230,67 +235,72 @@ static void menu_about(void) {
 }
 
 /**
- * @brief Refresh the audio enable flags and percentage labels
+ * @brief Refresh audio flags, volume percentages and computer difficulty
  */
 static void menu_options_values(void) {
+    static const char* const difficulties[] = {"EASY  ", "NORMAL", "HARD  "};
     static const char volumes[11][5] = {
         "0%  ", "10% ", "20% ", "30% ", "40% ", "50% ",
         "60% ", "70% ", "80% ", "90% ", "100%"
     };
-    menu_settext(23, 10, sound_music_enabled ? "ON " : "OFF");
-    menu_settext(28, 10, volumes[sound_music_volume]);
-    menu_settext(23, 14, sound_effects_enabled ? "ON " : "OFF");
-    menu_settext(28, 14, volumes[sound_effects_volume]);
+    menu_settext(23, 8, sound_music_enabled ? "ON " : "OFF");
+    menu_settext(28, 8, volumes[sound_music_volume]);
+    menu_settext(23, 12, sound_effects_enabled ? "ON " : "OFF");
+    menu_settext(28, 12, volumes[sound_effects_volume]);
+    menu_settext(23, 16, difficulties[ai_difficulty]);
 }
 
 /**
- * @brief Run the audio options menu and retain settings for this session
+ * @brief Run the options menu and retain settings for this session
  */
 static void menu_options(void) {
     uint8_t selected = 0;
     uint8_t previous, key;
     uint8_t* volume;
     menu_clear();
-    menu_centertext(2, "AUDIO OPTIONS");
+    menu_centertext(2, "OPTIONS");
     screen_create_lined_rectangle(3, 5, 34, 18);
-    menu_settext(7, 10, "MUSIC");
-    menu_settext(7, 14, "SOUNDS");
-    menu_settext(7, 18, "BACK");
+    menu_settext(7, 8, "MUSIC");
+    menu_settext(7, 12, "SOUNDS");
+    menu_settext(7, 16, "COMPUTER");
+    menu_settext(7, 20, "BACK");
     menu_options_values();
-    screen_set_tile_layer1(5, 10, TILE_SELECT_CURSOR);
-    menu_centertext(25, "UP DOWN SELECT  LEFT RIGHT VOLUME");
+    screen_set_tile_layer1(5, 8, TILE_SELECT_CURSOR);
+    menu_centertext(25, "UP DOWN SELECT  LEFT RIGHT CHANGE");
     menu_centertext(27, "ENTER SPACE TOGGLE  ESC BACK");
     screen_transition_end(0x31);
     while(1) {
         key = input_key();
         previous = selected;
         if(key == KEYCODE_ESCAPE ||
-           (selected == 2 && (key == KEYCODE_RETURN || key == KEYCODE_SPACE))) {
+           (selected == 3 && (key == KEYCODE_RETURN || key == KEYCODE_SPACE))) {
             sound_menu_effect(SFX_MENU_BACK);
             return;
         }
         if(key == KEYCODE_UP) {
-            selected = selected == 0 ? 2 : selected - 1;
+            selected = selected == 0 ? 3 : selected - 1;
         } else if(key == KEYCODE_DOWN) {
-            selected = selected == 2 ? 0 : selected + 1;
-        } else if(selected < 2) {
-            volume = selected == 0 ? &sound_music_volume : &sound_effects_volume;
+            selected = selected == 3 ? 0 : selected + 1;
+        } else if(selected < 3) {
+            volume = selected == 2 ? &ai_difficulty :
+                (selected == 0 ? &sound_music_volume : &sound_effects_volume);
             if(key == KEYCODE_RETURN || key == KEYCODE_SPACE) {
                 if(selected == 0) sound_music_enabled ^= 1;
-                else sound_effects_enabled ^= 1;
+                else if(selected == 1) sound_effects_enabled ^= 1;
+                else ai_difficulty = ai_difficulty == 2 ? 0 : ai_difficulty + 1;
             } else if(key == KEYCODE_LEFT) {
                 if(*volume) --*volume;
             } else if(key == KEYCODE_RIGHT) {
-                if(*volume < 10) ++*volume;
+                if(*volume < (selected == 2 ? 2 : 10)) ++*volume;
             } else continue;
-            sound_apply_options();
+            if(selected < 2) sound_apply_options();
             sound_menu_effect(SFX_MENU_SELECT);
             menu_options_values();
         }
         if(previous != selected) {
             sound_menu_effect(SFX_MENU_MOVE);
-            screen_set_tile_layer1(5, 10 + previous * 4, TILE_NONE);
-            screen_set_tile_layer1(5, 10 + selected * 4, TILE_SELECT_CURSOR);
+            screen_set_tile_layer1(5, 8 + previous * 4, TILE_NONE);
+            screen_set_tile_layer1(5, 8 + selected * 4, TILE_SELECT_CURSOR);
         }
     }
 }
