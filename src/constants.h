@@ -57,6 +57,7 @@
 #define TILE_BORDER_BOTTOM   0x0C
 
 #define TILE_SELECT_CURSOR   34
+#define TILE_STYLE_CHECK     35
 
 #define TILE_ENDGAME         0x2B
 
@@ -67,7 +68,6 @@
 #define GAME_MODE_COMPUTER   0x01
 #define GAME_MODE_LOCAL      0x02
 #define GAME_MODE_DEMO       0x03
-#define MENU_BACK            0xFF
 
 #define KEYCODE_DOWN        0x11
 #define KEYCODE_UP          0x91

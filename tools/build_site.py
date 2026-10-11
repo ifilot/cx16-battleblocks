@@ -44,9 +44,9 @@ def main():
             (output / 'game' / name).write_bytes(package.read(name))
     (output / 'game/manifest.json').write_text(json.dumps({'resources': list(RUNTIME_FILES)}, indent=2) + '\n')
     shutil.copy2(distribution, output / distribution.name)
-    shutil.copy2(ROOT / 'assets/png/titlescreen.png', output / 'splash.png')
+    shutil.copy2(ROOT / 'docs/screenshots/splash.png', output / 'splash.png')
     (output / 'screenshots').mkdir()
-    for name in ('light-battle.png', 'cyberpunk-battle.png', 'menu.png', 'options.png'):
+    for name in ('light-battle.png', 'cyberpunk-battle.png', 'menu.png', 'options.png', 'foundry-menu.png', 'foundry-battle.png', 'cyberpunk-styles.png', 'arcade-styles.png', 'synthwave-battle.png', 'synthwave-menu.png', 'matrix-battle.png', 'matrix-menu.png'):
         shutil.copy2(ROOT / 'docs/screenshots' / name, output / 'screenshots' / name)
     (output / '.nojekyll').touch()
     result = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True)

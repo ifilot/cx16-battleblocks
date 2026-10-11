@@ -18,6 +18,7 @@
  *************************************************************************/
 
 #include "menu.h"
+#include "input.h"
 #include <string.h>
 #include "game.h"
 #include "sound.h"
@@ -34,6 +35,7 @@
 #define MENU_LAST MENU_ABOUT
 #define MENU_TEXT_X 18
 #define MENU_CURSOR_X 16
+static const char* const style_names[] = {"COMMANDER X16", "CYBERPUNK", "FOUNDRY", "SYNTHWAVE", "MATRIX"};
 
 /**
  * @brief Draw the main menu, all seven pieces and the selection cursor
@@ -111,7 +113,7 @@ static void menu_description(uint8_t mode) {
     static const char* const descriptions[] = {
         "CLEAR LINES  BEAT YOUR SCORE", "BATTLE THE COMPUTER",
         "LOCAL TWO PLAYER BATTLE", "COMPUTER VERSUS COMPUTER",
-        "CLASSIC OR CYBERPUNK", "MUSIC AND SOUND EFFECTS",
+        "PREVIEW FIVE VISUAL STYLES", "MUSIC AND SOUND EFFECTS",
         "VERSION  CREDITS  SYSTEM DETAILS"
     };
     menu_settext(2, 24, "                                    ");
@@ -134,22 +136,71 @@ static void menu_piece(uint8_t x, uint8_t y, uint8_t type) {
 }
 
 /**
- * @brief Refresh the selected theme label in the main menu
- */
-static void menu_style_label(void) {
-    menu_settext(MENU_TEXT_X + 8, 16, screen_style == SCREEN_STYLE_CYBERPUNK ? "CYBERPUNK" : "CLASSIC  ");
-}
-
-/**
  * @brief Switch theme and refresh its palette, background and label
  */
 static void menu_toggle_style(void) {
     sound_menu_effect(SFX_MENU_SELECT);
-    screen_style ^= 1;
+    if(++screen_style >= SCREEN_STYLE_COUNT) screen_style = SCREEN_STYLE_COMMANDER_X16;
     screen_transition_begin();
-    menu_style_label();
     screen_apply_style();
+    screen_draw_menu_title();
     screen_transition_end(0x31);
+}
+
+/**
+ * @brief Preview each theme and apply it, or restore the original on Escape
+ */
+static void menu_styles(void) {
+    uint8_t original = screen_style;
+    uint8_t selected = original;
+    uint8_t previous, key, i;
+    static const char* const descriptions[] = {
+        "X16 WHITE AND BLUE", "NEON CIRCUIT BOARDS", "RIVETED COPPER", "NEON SUNSET", "PHOSPHOR TERMINAL"
+    };
+    menu_clear();
+    menu_centertext(2, "CHOOSE YOUR STYLE");
+    for(i = 0; i < SCREEN_STYLE_COUNT; i++) {
+        /* Leave separate tile rows for this bottom rim and the next top rim. */
+        screen_create_lined_rectangle(2, 5 + i * 4, 22, 2);
+        menu_settext(7, 5 + i * 4, style_names[i]);
+        screen_set_tile_layer1(5, 5 + i * 4, 25 + i);
+        menu_settext(5, 6 + i * 4, descriptions[i]);
+    }
+    screen_set_tile_layer1(22, 5 + original * 4, TILE_STYLE_CHECK);
+    screen_create_lined_rectangle(27, 6, 11, 18);
+    menu_settext(29, 7, "PREVIEW");
+    for(i = 0; i < 7; i++) menu_piece(28 + (i % 2) * 6, 8 + (i / 2) * 4, i);
+    screen_set_tile_layer1(3, 5 + selected * 4, TILE_SELECT_CURSOR);
+    menu_centertext(26, "UP DOWN PREVIEW  ENTER APPLY");
+    menu_centertext(28, "1 2 3 4 5 CHOOSE  ESC CANCEL");
+    screen_transition_end(0x31);
+    while(1) {
+        key = input_key();
+        previous = selected;
+        if(key == KEYCODE_ESCAPE) {
+            screen_style = original;
+            sound_menu_effect(SFX_MENU_BACK);
+            return;
+        }
+        if(key == KEYCODE_RETURN || key == KEYCODE_SPACE) {
+            sound_menu_effect(SFX_MENU_SELECT);
+            return;
+        }
+        if(key == KEYCODE_UP || key == KEYCODE_LEFT)
+            selected = selected == 0 ? SCREEN_STYLE_COUNT - 1 : selected - 1;
+        else if(key == KEYCODE_DOWN || key == KEYCODE_RIGHT || key == 'T' || key == 't')
+            selected = selected == SCREEN_STYLE_COUNT - 1 ? 0 : selected + 1;
+        else if(key >= '1' && key <= '5') selected = key - '1';
+        if(previous != selected) {
+            sound_menu_effect(SFX_MENU_MOVE);
+            screen_transition_begin();
+            screen_style = selected;
+            screen_apply_style();
+            screen_set_tile_layer1(3, 5 + previous * 4, TILE_NONE);
+            screen_set_tile_layer1(3, 5 + selected * 4, TILE_SELECT_CURSOR);
+            screen_transition_end(0x31);
+        }
+    }
 }
 
 /**
@@ -171,7 +222,7 @@ static void menu_about(void) {
     menu_centertext(28, "ENTER SPACE OR ESC TO RETURN");
     screen_transition_end(0x31);
     do {
-        key = cbm_k_getin();
+        key = input_key();
     } while(key != KEYCODE_ESCAPE && key != KEYCODE_RETURN && key != KEYCODE_SPACE);
     sound_menu_effect(SFX_MENU_BACK);
 }
@@ -209,7 +260,7 @@ static void menu_options(void) {
     menu_centertext(27, "ENTER SPACE TOGGLE  ESC BACK");
     screen_transition_end(0x31);
     while(1) {
-        key = cbm_k_getin();
+        key = input_key();
         previous = selected;
         if(key == KEYCODE_ESCAPE ||
            (selected == 2 && (key == KEYCODE_RETURN || key == KEYCODE_SPACE))) {
@@ -249,30 +300,29 @@ static void menu_draw(uint8_t selected) {
     uint8_t i;
     static const char* const labels[] = {
         "1 SINGLE PLAYER", "2 VERSUS COMPUTER", "3 TWO PLAYERS",
-        "4 COMPUTER DEMO", "5 STYLE", "6 OPTIONS", "7 ABOUT"
+        "4 COMPUTER DEMO", "5 SELECT STYLE", "6 OPTIONS", "7 ABOUT"
     };
     menu_clear();
-    menu_centertext(2, "BATTLE BLOCKS");
+    screen_draw_menu_title();
     menu_centertext(5, "MAIN MENU");
     screen_create_lined_rectangle(2, 7, 10, 16);
     screen_create_lined_rectangle(15, 7, 23, 16);
     for(i = 0; i < 7; ++i) menu_settext(MENU_TEXT_X, 8 + i * 2, labels[i]);
-    menu_style_label();
     /* Two columns, with two empty rows between successive pairs. */
     for(i = 0; i < 7; ++i) menu_piece(3 + (i % 2) * 6, 8 + (i / 2) * 4, i);
     menu_centertext(28, "UP DOWN SELECT  ENTER OPEN");
-    menu_centertext(29, "T CHANGE STYLE  ESC BACK");
+    menu_centertext(29, "1 TO 7 SELECT  T QUICK STYLE");
     screen_set_tile_layer1(MENU_CURSOR_X, 8 + selected * 2, TILE_SELECT_CURSOR);
     menu_description(selected);
     screen_transition_end(0x31);
 }
 
 /**
- * @brief Run the main menu and return a game mode or MENU_BACK
+ * @brief Run the main menu and return the selected game mode
  *
  * @param initial_mode Zero-based initial menu selection, 0..6
  *
- * @return Selected GAME_MODE_* value, or MENU_BACK on Escape
+ * @return Selected GAME_MODE_* value
  */
 uint8_t menu_select(uint8_t initial_mode) {
     uint8_t selected = initial_mode;
@@ -281,7 +331,7 @@ uint8_t menu_select(uint8_t initial_mode) {
     menu_draw(selected);
 
     while(1) {
-        key = cbm_k_getin();
+        key = input_key();
         previous = selected;
         switch(key) {
             case KEYCODE_UP:
@@ -305,10 +355,10 @@ uint8_t menu_select(uint8_t initial_mode) {
                 break;
             case KEYCODE_RETURN:
             case KEYCODE_SPACE:
-                if(selected == MENU_STYLE) menu_toggle_style();
-                else if(selected == MENU_OPTIONS || selected == MENU_ABOUT) {
+                if(selected == MENU_STYLE || selected == MENU_OPTIONS || selected == MENU_ABOUT) {
                     sound_menu_effect(SFX_MENU_SELECT);
-                    if(selected == MENU_OPTIONS) menu_options();
+                    if(selected == MENU_STYLE) menu_styles();
+                    else if(selected == MENU_OPTIONS) menu_options();
                     else menu_about();
                     menu_draw(selected);
                 }
@@ -323,7 +373,7 @@ uint8_t menu_select(uint8_t initial_mode) {
                 break;
             case KEYCODE_ESCAPE:
                 sound_menu_effect(SFX_MENU_BACK);
-                return MENU_BACK;
+                break;
         }
         if(previous != selected) {
             sound_menu_effect(SFX_MENU_MOVE);

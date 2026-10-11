@@ -1,4 +1,4 @@
-; Resident text-only loading screen: Classic white/black, Cyberpunk cyan/navy.
+; Resident loading label using the selected scene palette.
 .include "vera.inc"
 .include "constants.inc"
 .include "zeropage.inc"
@@ -9,7 +9,7 @@
 .code
 .proc _screen_transition_init
     stz VERA_ADDR_CTRL
-    lda #$5c               ; Unused Classic white at palette index 46
+    lda #$5c               ; Unused Commander X16 white at palette index 46
     sta VERA_ADDR_LOW
     lda #$fa
     sta VERA_ADDR_HIGH
@@ -117,6 +117,11 @@ label:
     cpx #7
     bne :+
     lda _screen_style
+    cmp #4
+    bne palette_bank
+    lda #$74              ; Matrix label uses palette index 78
+    bra :+
+palette_bank:
     ora #$72
 :
     sta VERA_DATA0
@@ -127,11 +132,31 @@ label:
     lda #$fa
     sta VERA_ADDR_HIGH
     lda _screen_style
-    beq :+
-    lda #$12               ; Cyberpunk navy; Classic black
+    beq background
+    cmp #2
+    beq foundry
+    cmp #4
+    bne :+
+    lda #$11               ; Matrix charcoal green
+    bra background
+:
+    lda #$12               ; Cyberpunk navy
+    bra background
+foundry:
+    lda #$22               ; Foundry steel, from its sixteen-color palette
+background:
+    sta VERA_DATA0
+    lda #0
+    ldx _screen_style
+    cpx #2
+    bne :+
+    lda #2
+:
+    cpx #3
+    bne :+
+    lda #1               ; Synthwave deep plum ($112)
 :
     sta VERA_DATA0
-    stz VERA_DATA0
     stz $9f2c              ; black border
     lda #$41
     sta $9f29

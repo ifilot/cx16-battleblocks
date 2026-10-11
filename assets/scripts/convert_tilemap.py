@@ -46,6 +46,11 @@ def main():
                               (3, {26: 232, 28: 233, 29: 234, 30: 235})):
             for pixel in range(tile * 256, (tile + 1) * 256):
                 data[pixel] = aliases.get(data[pixel], data[pixel])
+        # Give horizontal seams the same ink as vertical seams. The old
+        # top row used the tile face color, hiding it in flat theme palettes.
+        for tile in (2, 3):
+            for x in range(1, 14):
+                data[tile * 256 + x] = 233
         # The original large font shares white with the card paper.
         for tile in (*range(24, 34), *range(96, 122)):
             for pixel in range(tile * 256, (tile + 1) * 256):
@@ -81,6 +86,13 @@ def build_menu_punctuation(data):
     # A baseline dot, centered dash and connected slash stay readable on
     # both the light card surface and the dark Cyberpunk background.
     shapes = (
+        # A small check marks the applied style inside its card.
+        {(2 + x, 3 + y)
+         for y, row in enumerate(('00000000011', '00000000111',
+                                  '00000001110', '00000011100',
+                                  '11000111000', '11101110000',
+                                  '01111100000', '00111000000'))
+         for x, bit in enumerate(row) if bit == '1'},
         {(x, y) for y in (10, 11) for x in range(6, 10)},
         {(10 - (y - 2) // 2 * 2 + dx, y)
          for y in range(2, 12) for dx in range(3)},
@@ -93,7 +105,7 @@ def build_menu_punctuation(data):
         {(11 - (y - 2) * 8 // 9 + dx, y)
          for y in range(2, 12) for dx in range(2)},
     )
-    for tile, points in zip((36, 37, 38, 40), shapes):
+    for tile, points in zip((35, 36, 37, 38, 40), shapes):
         pixels = bytearray(256)
         for x, y in points:
             for dy in range(-2, 3):

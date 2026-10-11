@@ -32,19 +32,23 @@
  * coordinates unless an API explicitly takes a pixel or VRAM address.
  */
 
-#define SCREEN_STYLE_CLASSIC 0
+#define SCREEN_STYLE_COMMANDER_X16 0
 #define SCREEN_STYLE_CYBERPUNK 1
-extern uint8_t screen_style; // SCREEN_STYLE_CLASSIC or SCREEN_STYLE_CYBERPUNK
+#define SCREEN_STYLE_FOUNDRY 2
+#define SCREEN_STYLE_SYNTHWAVE 3
+#define SCREEN_STYLE_MATRIX 4
+#define SCREEN_STYLE_COUNT 5
+extern uint8_t screen_style; // One of the SCREEN_STYLE_* values
 
 /**
- * @brief Restore the base palette, then apply the selected theme
+ * @brief Draw the themed splash lettering above the main menu
+ */
+void screen_draw_menu_title(void);
+
+/**
+ * @brief Reuse cached assets and apply the selected theme
  */
 void screen_apply_style(void);
-
-/**
- * @brief Apply the Cyberpunk splash palette when that theme is selected
- */
-void screen_apply_title_style(void);
 
 /**
  * @brief Configure VERA layers for the native 16-color splash
@@ -52,7 +56,7 @@ void screen_apply_title_style(void);
 void screen_init_title();
 
 /**
- * @brief Configure menu tile layers and save the base palette
+ * @brief Configure menu tile layers and prepare the selected style
  */
 void screen_init_menu();
 

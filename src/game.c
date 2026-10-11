@@ -626,42 +626,34 @@ void game_update_shadow(struct GameState* gamestate) {
  */
 void game_parse_keyboard(uint8_t keycode) {
     if(game_mode == GAME_MODE_DEMO) return;
-    if(gs_player1.state == GAME_STATE_RUN) switch(keycode) {
-        case KEYCODE_DOWN:
-            game_piece_down(&gs_player1);
-        break;
-        case KEYCODE_UP:
-            game_piece_rotate(&gs_player1);
-        break;
-        case KEYCODE_LEFT:
-            game_piece_move(&gs_player1, MOVE_LEFT);
-        break;
-        case KEYCODE_RIGHT:
-            game_piece_move(&gs_player1, MOVE_RIGHT);
-        break;
-        case KEYCODE_0:
-        case KEYCODE_SPACE:
-            game_piece_drop(&gs_player1);
-        break;
-    }
-
-    if(game_mode != GAME_MODE_LOCAL || gs_player2.state != GAME_STATE_RUN) return;
+    game_parse_input(&gs_player1, keycode);
+    if(game_mode != GAME_MODE_LOCAL) return;
     switch(keycode) {
-        case 'A': case 'a':
-            game_piece_move(&gs_player2, MOVE_LEFT);
-            break;
-        case 'D': case 'd':
-            game_piece_move(&gs_player2, MOVE_RIGHT);
-            break;
-        case 'S': case 's':
-            game_piece_down(&gs_player2);
-            break;
-        case 'W': case 'w':
-            game_piece_rotate(&gs_player2);
-            break;
-        case 'Q': case 'q':
-            game_piece_drop(&gs_player2);
-            break;
+        case 'A': case 'a': keycode = KEYCODE_LEFT; break;
+        case 'D': case 'd': keycode = KEYCODE_RIGHT; break;
+        case 'S': case 's': keycode = KEYCODE_DOWN; break;
+        case 'W': case 'w': keycode = KEYCODE_UP; break;
+        case 'Q': case 'q': keycode = KEYCODE_SPACE; break;
+        default: return;
+    }
+    game_parse_input(&gs_player2, keycode);
+}
+
+/**
+ * @brief Apply a keyboard or controller action to a running human board
+ *
+ * @param player  Board receiving the action
+ * @param keycode Shared keyboard action code
+ */
+void game_parse_input(struct GameState* player, uint8_t keycode) {
+    if(player->state != GAME_STATE_RUN) return;
+    switch(keycode) {
+        case KEYCODE_DOWN: game_piece_down(player); break;
+        case KEYCODE_UP: game_piece_rotate(player); break;
+        case KEYCODE_LEFT: game_piece_move(player, MOVE_LEFT); break;
+        case KEYCODE_RIGHT: game_piece_move(player, MOVE_RIGHT); break;
+        case KEYCODE_0:
+        case KEYCODE_SPACE: game_piece_drop(player); break;
     }
 }
 

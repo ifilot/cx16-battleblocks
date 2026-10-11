@@ -20,6 +20,7 @@
 #include "screen.h"
 #include "hud_generated.h"
 #include "banner_generated.h"
+#include "menu_title_generated.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -28,36 +29,9 @@
  * coordinates unless an API explicitly takes a pixel or VRAM address.
  */
 
-uint8_t screen_style = SCREEN_STYLE_CLASSIC;
-static uint8_t original_palette[512];
-static uint8_t palette_saved;
-
-/* VERA colors are 12-bit RGB. Only scene transitions/menu input touch these. */
-struct PaletteColor { uint8_t index; uint16_t rgb; };
-static const struct PaletteColor cyberpunk_palette[] = {
-    {1, 0xDFF}, {11, 0x8EF}, {16, 0x8EF}, {18, 0x012},
-    {30, 0x012}, {147, 0x046}, {240, 0xDFF},
-    {232, 0x145}, {233, 0x123}, {234, 0x012}, {235, 0x012},
-    {236, 0x012}, {237, 0x123}, {239, 0x001},
-    /* Circuit wallpaper: navy, etched tracks, contacts, muted pink accent. */
-    {242, 0x012}, {243, 0x123}, {244, 0x145}, {245, 0x624},
-    /* Keep seven recognizable piece colors and their bevels. */
-    {167, 0x056}, {150, 0xBFF}, {157, 0x0EF}, {156, 0x09B},
-    {84, 0x650}, {73, 0xFFA}, {87, 0xFE2}, {86, 0xBA0},
-    {223, 0x306}, {220, 0xD8F}, {227, 0xA3F}, {225, 0x71B},
-    {139, 0x052}, {143, 0xAFF}, {142, 0x2F8}, {141, 0x1A5},
-    {55, 0x601}, {59, 0xF68}, {58, 0xF24}, {57, 0xA13},
-    {195, 0x136}, {185, 0x9CF}, {199, 0x48F}, {197, 0x25A},
-    {253, 0x606}, {241, 0xF9F}, {255, 0xF2C}, {254, 0xB18}
-};
-
-/**
- * @brief Write one 12-bit RGB color to the VERA palette
- */
-static void screen_palette_color(uint8_t index, uint16_t rgb) {
-    vpoke((uint8_t)rgb, 0x1FA00UL + (uint16_t)index * 2);
-    vpoke((uint8_t)(rgb >> 8), 0x1FA01UL + (uint16_t)index * 2);
-}
+uint8_t screen_style = SCREEN_STYLE_COMMANDER_X16;
+static uint8_t menu_title_ready;
+static uint8_t surface_style = 255;
 
 /**
  * @brief Replace wallpaper tiles while preserving panel surfaces
@@ -83,8 +57,13 @@ static void screen_style_background(void) {
                ((attribute & 3) == (TILE_CYBERPUNK_FIRST >> 8) &&
                 low >= (TILE_CYBERPUNK_FIRST & 255) &&
                 low < (TILE_CYBERPUNK_FIRST & 255) + TILE_CYBERPUNK_COUNT)) {
-                low = screen_style == SCREEN_STYLE_CYBERPUNK ? row_tile + (x & 3) : TILE_BG0;
-                attribute = screen_style == SCREEN_STYLE_CYBERPUNK ? TILE_CYBERPUNK_FIRST >> 8 : 0;
+                if(screen_style == SCREEN_STYLE_SYNTHWAVE) {
+                    low = TILE_BG0;
+                    attribute = 0;
+                } else {
+                    low = screen_style != SCREEN_STYLE_COMMANDER_X16 ? row_tile + (x & 3) : TILE_BG0;
+                    attribute = screen_style != SCREEN_STYLE_COMMANDER_X16 ? TILE_CYBERPUNK_FIRST >> 8 : 0;
+                }
             }
             VERA.data1 = low;
             VERA.data1 = attribute;
@@ -93,49 +72,32 @@ static void screen_style_background(void) {
 }
 
 /**
- * @brief Restore the base palette, then apply the selected theme
+ * @brief Reuse cached assets and apply the selected theme
  */
 void screen_apply_style(void) {
-    uint16_t i;
     uint8_t video = VERA.display.video;
-    /* Reserved aliases: grid 232-235, floor 236-237, garbage ink 238, shadows 239. */
-    static const uint8_t originals[] = {26, 28, 29, 30, 147, 148, 11, 11};
+    static const char* const palettes[] = {"arcadep.dat", "cyberp.dat", "foundryp.dat", "synthp.dat", "matrixp.dat"};
     screen_transition_begin();
-    VERA.control = 0;
-    VERA.address = 0xFA00;
-    VERA.address_hi = 0x11;
-    for(i = 0; i < sizeof(original_palette); i++)
-        VERA.data0 = original_palette[i];
-    for(i = 0; i < sizeof(originals); i++) {
-        vpoke(original_palette[(uint16_t)originals[i] * 2], 0x1FA00UL + (232 + i) * 2);
-        vpoke(original_palette[(uint16_t)originals[i] * 2 + 1], 0x1FA01UL + (232 + i) * 2);
-    }
-    /* Large-font white must stay independent of the dark card paper. */
-    vpoke(original_palette[30 * 2], 0x1FA00UL + 240UL * 2);
-    vpoke(original_palette[30 * 2 + 1], 0x1FA01UL + 240UL * 2);
-    if(screen_style == SCREEN_STYLE_CYBERPUNK) {
-        for(i = 0; i < sizeof(cyberpunk_palette) / sizeof(cyberpunk_palette[0]); i++)
-            screen_palette_color(cyberpunk_palette[i].index, cyberpunk_palette[i].rgb);
+    if(surface_style != screen_style) {
+        static const char* const surfaces[] = {"arcade.dat", "tiles.dat", "foundry.dat", "synth.dat", "matrix.dat"};
+        screen_load_tiles(palettes[screen_style], 0x1FA00UL);
+        /* Foundry overrides the base frames; other styles supply a full atlas. */
+        if(screen_style == SCREEN_STYLE_FOUNDRY)
+            screen_load_tiles("tiles.dat", TILEBASE);
+        screen_load_tiles(surfaces[screen_style], TILEBASE);
+        if(screen_style != SCREEN_STYLE_SYNTHWAVE)
+            screen_load_tiles(screen_style == SCREEN_STYLE_MATRIX ? "matbg.dat" :
+                              screen_style == SCREEN_STYLE_FOUNDRY ? "forge.dat" : "cyber.dat",
+                              (uint32_t)TILE_CYBERPUNK_FIRST * 256);
+        surface_style = screen_style;
+        menu_title_ready = 0;
     }
     screen_style_background();
     screen_transition_end(video);
 }
 
-/**
- * @brief Apply the Cyberpunk splash palette when that theme is selected
- */
-void screen_apply_title_style(void) {
-    uint8_t i;
-    /* Same 16-color metropolis artwork, with a neon night palette. */
-    static const uint16_t colors[16] = {
-        0x012, 0x027, 0x306, 0x123, 0x245, 0x367, 0x489, 0x0BD,
-        0x0EF, 0xA4D, 0xF2A, 0xBBF, 0x6CF, 0xFE2, 0x9EF, 0xEFF
-    };
-    if(screen_style == SCREEN_STYLE_CYBERPUNK)
-        for(i = 0; i < 16; i++) screen_palette_color(i, colors[i]);
-}
 static uint8_t garbage_tiles_ready;
-static uint8_t hud_tiles_ready;
+static uint8_t hud_tiles_style = 255;
 static uint8_t banner_tiles_style = 255;
 /* One digit row needs at most ten pixels; only the score has ten slots. */
 static uint8_t hud_pixels[10];
@@ -152,17 +114,13 @@ extern void __fastcall__ screen_hud_copy(const uint8_t* pixels, uint8_t count);
  * @brief Configure VERA layers for the native 16-color splash
  */
 void screen_init_title() {
-    uint16_t i;
+    menu_title_ready = 0;
+    surface_style = 255;
     garbage_tiles_ready = 0;
-    hud_tiles_ready = 0;
+    hud_tiles_style = 255;
     banner_tiles_style = 255;
 
     screen_loading_begin();
-    if(!palette_saved) {
-        for(i = 0; i < sizeof(original_palette); i++)
-            original_palette[i] = vpeek(0x1FA00UL + i);
-        palette_saved = 1;
-    }
 
     // Native 640 x 480, with repeated 16x16 tiles to fit in VRAM.
     VERA.display.hscale = 128;
@@ -185,7 +143,7 @@ void screen_init_title() {
 }
 
 /**
- * @brief Configure menu tile layers and save the base palette
+ * @brief Configure menu tile layers and prepare the selected style
  */
 void screen_init_menu() {
     screen_apply_style();
@@ -238,6 +196,8 @@ static void screen_create_garbage_tiles(void) {
  * @brief Configure game tile layers and prepare themed garbage blocks
  */
 void screen_init_game() {
+    /* Gameplay banners reuse the menu logo's VRAM atlas. */
+    menu_title_ready = 0;
     screen_apply_style();
     if(!garbage_tiles_ready) {
         screen_create_garbage_tiles();
@@ -301,11 +261,12 @@ void screen_create_background(uint8_t players) {
 void screen_create_scorebox(uint8_t players) {
     uint8_t row, col, limit = players == 1 ? 20 : 40;
     uint16_t tile, address;
-    if(!hud_tiles_ready) {
-        screen_load_tiles("hud.dat", 130UL * 256);
+    if(hud_tiles_style != screen_style) {
+        static const char* const atlases[] = {"hud-a.dat", "hud.dat", "hud-f.dat", "hud-s.dat", "hud-m.dat"};
+        screen_load_tiles(atlases[screen_style], 130UL * 256);
         memset(hud_last_digits, 0, sizeof(hud_last_digits));
         memset(hud_value_ready, 0, sizeof(hud_value_ready));
-        hud_tiles_ready = 1;
+        hud_tiles_style = screen_style;
     }
     for(row = 0; row < 30; row++) {
         if(!hud_rows[row]) continue;
@@ -325,20 +286,16 @@ void screen_create_scorebox(uint8_t players) {
 /**
  * @brief Copy one glyph row at the HUD field's pixel scale
  *
- * Store one native glyph; double pixels only when drawing the large score.
+ * Decode packed glyph bits; double pixels only when drawing the large score.
  */
 static void screen_hud_digit_row(uint8_t* pixels, const uint8_t* glyph,
                                  uint8_t row, uint8_t scale) {
-    uint8_t col, color;
-    if(scale == 1) {
-        memcpy(pixels, glyph + row * 5, 5);
-    } else {
-        glyph += (row >> 1) * 5;
-        for(col = 0; col < 5; col++) {
-            color = *glyph++;
-            *pixels++ = color;
-            *pixels++ = color;
-        }
+    uint8_t col, color, bits = glyph[scale == 1 ? row : row >> 1];
+    for(col = 0; col < 5; col++) {
+        color = bits & 16 ? 11 : 30;
+        bits <<= 1;
+        *pixels++ = color;
+        if(scale == 2) *pixels++ = color;
     }
 }
 
@@ -369,7 +326,7 @@ void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value) {
         ch = slot < slots - length ? ' ' : text[slot - (slots - length)];
         if(cached[slot] == ch ||
            (!cached[slot] && ch == ' ')) continue;
-        if(ch != ' ') glyph = &hud_digits[ch - '0'][0][0];
+        if(ch != ' ') glyph = hud_digits[ch - '0'];
         for(row = 0; row < f->height; row++) {
             if(ch == ' ') memset(hud_pixels, f->background, width);
             else screen_hud_digit_row(hud_pixels, glyph, row, scale);
@@ -407,11 +364,13 @@ void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value) {
 void screen_draw_player_banner(uint8_t player, uint8_t computer, uint8_t number) {
     uint8_t row, col, variant = (computer ? 2 : 0) + (number == 2 ? 1 : 0);
     uint16_t address;
-    const uint16_t* tiles;
+    const uint8_t* tiles;
     if(banner_tiles_style != screen_style) {
-        screen_load_tiles(screen_style == SCREEN_STYLE_CYBERPUNK ? "name-c.dat" : "name-l.dat",
+        static const char* const atlases[] = {"name-l.dat", "name-c.dat", "name-f.dat", "name-s.dat", "name-m.dat"};
+        static const char* const spills[] = {"name-lx.dat", "name-cx.dat", "name-fx.dat", "name-sx.dat", "name-mx.dat"};
+        screen_load_tiles(atlases[screen_style],
                           (uint32_t)BANNER_TILE_FIRST * 256);
-        screen_load_tiles(screen_style == SCREEN_STYLE_CYBERPUNK ? "name-cx.dat" : "name-lx.dat",
+        screen_load_tiles(spills[screen_style],
                           (uint32_t)BANNER_TILE_SPILL * 256);
         banner_tiles_style = screen_style;
     }
@@ -422,7 +381,7 @@ void screen_draw_player_banner(uint8_t player, uint8_t computer, uint8_t number)
         VERA.address_hi = 0x11;
         for(col = 0; col < 18; col++) {
             VERA.data0 = tiles[col];
-            VERA.data0 = tiles[col] >> 8;
+            VERA.data0 = 1;
         }
     }
 }
@@ -619,4 +578,28 @@ void screen_redraw_playfield(uint8_t x, uint8_t* playfield) {
  */
 void screen_clear_row_cell(uint8_t xoffset, uint8_t row, uint8_t column) {
     screen_set_tile_layer1(xoffset + column, 27 - row, TILE_NONE);
+}
+
+/**
+ * @brief Draw the themed splash lettering above the main menu
+ */
+void screen_draw_menu_title(void) {
+    uint8_t row, column;
+    uint8_t tile;
+    if(!menu_title_ready) {
+        screen_load_tiles(screen_style == SCREEN_STYLE_COMMANDER_X16 ? "menu-a.dat" : "menu.dat",
+                          (uint32_t)MENU_TITLE_FIRST * 256);
+        /* The logo overwrites the spill tiles of cached gameplay banners. */
+        banner_tiles_style = 255;
+        menu_title_ready = 1;
+    }
+    for(row = 0; row < 2; row++) {
+        VERA.address = (uint16_t)MAPBASE1 + ((uint16_t)(row + 1) << 7) + 20;
+        VERA.address_hi = 0x11;
+        for(column = 0; column < 20; column++) {
+            tile = menu_title_map[row][column];
+            VERA.data0 = tile;
+            VERA.data0 = tile ? MENU_TITLE_FIRST >> 8 : 0;
+        }
+    }
 }

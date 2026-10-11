@@ -49,11 +49,11 @@ void menu_settext(uint8_t x, uint8_t y, const char* str);
 void menu_centertext(uint8_t y, const char* str);
 
 /**
- * @brief Run the main menu and return a game mode or MENU_BACK
+ * @brief Run the main menu and return the selected game mode
  *
  * @param initial_mode Zero-based initial menu selection, 0..6
  *
- * @return Selected GAME_MODE_* value, or MENU_BACK on Escape
+ * @return Selected GAME_MODE_* value
  */
 uint8_t menu_select(uint8_t initial_mode);
 

@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#001122">
+<meta name="theme-color" content="#eef0f4">
 <meta name="description" content="Play Battle Blocks for the Commander X16 in your browser. Challenge the computer, battle a friend, or watch the computer demo.">
 <title>Battle Blocks · Commander X16</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css"><script defer src="app.js"></script>
 </head>
 <body>
-<header class="topbar"><a class="wordmark" href="./">▦ BATTLE BLOCKS</a><a href="https://github.com/ifilot/cx16-battleblocks">View source ↗</a></header>
+<header class="topbar"><a class="wordmark" href="./"><img src="favicon.svg" width="28" height="28" alt="">BATTLE BLOCKS</a><nav aria-label="Main navigation"><a href="#screenshots">Five styles</a><a href="#download">Download</a><a href="https://github.com/ifilot/cx16-battleblocks">Source ↗</a></nav></header>
 <main>
-<section class="intro"><p class="eyebrow">COMMANDER X16 / FALLING-BLOCK BATTLES</p><h1>Build your stack.<br><span>Break theirs.</span></h1><p class="lead">Clear lines. Send garbage. Keep your board alive.<br>Play solo, challenge the computer, battle a friend, or let two computers fight it out.<br>Choose your look: <a href="#screenshots">Classic or Cyberpunk</a>.</p></section>
+<section class="intro"><p class="eyebrow">BUILT FOR THE COMMANDER X16</p><h1>Build your stack.<br><span>Break theirs.</span></h1><p class="lead">Clear lines. Send garbage. Keep your board alive.<br>Play solo, challenge the computer, battle a friend, or watch two computers fight it out.</p><div class="intro-details"><span>4 game modes</span><span>5 visual styles</span><span>640 × 480 pixels</span></div></section>
 <section class="play-section" aria-label="Play Battle Blocks">
 <div class="game-heading"><span id="status" role="status" aria-live="polite">Ready to start</span><span class="spec">640 × 480 · COMMANDER X16</span></div>
 <div class="player" id="player">
@@ -30,22 +30,34 @@
 <p id="error" class="error" role="alert" hidden></p>
 </section>
 <section class="screenshots" id="screenshots" aria-labelledby="screenshots-title">
-<p class="eyebrow">CLASSIC &amp; CYBERPUNK</p><h2 id="screenshots-title">Pick your look.</h2>
-<p class="gallery-intro">Bright boards and colorful blocks, or neon against a dark circuit-board backdrop. Both styles include every game mode. Start in Classic, then press <kbd>T</kbd> in the game menu or tap <strong>Theme</strong> to switch.</p>
-<div class="screenshot-grid">
-<figure><a href="screenshots/light-battle.png" aria-label="View full-size screenshot: Classic"><img src="screenshots/light-battle.png" width="640" height="480" loading="lazy" alt="Classic gameplay with two bright tiled boards and colorful falling blocks"></a><figcaption><h3>Classic</h3><p>A bright grid, bold colors, and the original arcade look.</p></figcaption></figure>
-<figure><a href="screenshots/cyberpunk-battle.png" aria-label="View full-size screenshot: Cyberpunk"><img src="screenshots/cyberpunk-battle.png" width="640" height="480" loading="lazy" alt="Cyberpunk gameplay with neon blocks on dark boards over a circuit pattern"></a><figcaption><h3>Cyberpunk</h3><p>Dark boards, glowing colors, and a circuit-board backdrop.</p></figcaption></figure>
-<figure><a href="screenshots/menu.png" aria-label="View full-size screenshot: Your next battle"><img src="screenshots/menu.png" width="640" height="480" loading="lazy" alt="Classic main menu with all seven block shapes in a separate left panel"></a><figcaption><h3>Your next battle</h3><p>Choose solo, versus computer, two players, or a computer demo. Switch styles in the same menu.</p></figcaption></figure>
-<figure><a href="screenshots/options.png" aria-label="View full-size screenshot: Set the soundtrack"><img src="screenshots/options.png" width="640" height="480" loading="lazy" alt="Audio options with independent music and sound effect volume controls"></a><figcaption><h3>Set the soundtrack</h3><p>Adjust music and sound effects separately, or turn either off.</p></figcaption></figure>
+<p class="eyebrow">FIVE WAYS TO MAKE IT YOURS</p><h2 id="screenshots-title">Find your favorite style.</h2>
+<p class="gallery-intro">Start in Commander X16, then explore Cyberpunk, Foundry, Synthwave, and Matrix. Every style supports all four game modes. Select a style below to see real gameplay captured from the X16 emulator.</p>
+<div class="style-showcase">
+<figure class="style-feature">
+<a id="style-preview-link" href="screenshots/light-battle.png" aria-label="Open full-size Commander X16 screenshot"><img id="style-preview" src="screenshots/light-battle.png" width="640" height="480" loading="lazy" alt="Commander X16 gameplay with white tiled boards, blue frames, and colorful blocks."></a>
+<figcaption><div class="style-caption-title"><h3 id="style-preview-title">Commander X16</h3><span id="style-preview-tag">The default</span></div><p id="style-preview-description">White surfaces, blue frames, and rainbow accents inspired by the Commander X16.</p></figcaption>
+</figure>
+<div class="style-choices" role="group" aria-label="Preview a game style">
+<button class="style-choice" type="button" data-style="commander" data-title="Commander X16" data-description="White surfaces, blue frames, and rainbow accents inspired by the Commander X16." data-tag="The default" aria-pressed="true" aria-controls="style-preview"><img src="screenshots/light-battle.png" width="640" height="480" loading="lazy" alt="Commander X16 gameplay with white tiled boards, blue frames, and colorful blocks."><span class="style-choice-text"><span class="style-number">01</span><strong>Commander X16</strong><span>The default</span></span></button>
+<button class="style-choice" type="button" data-style="cyberpunk" data-title="Cyberpunk" data-description="A quiet navy circuit backdrop with bright cyan frames and neon pieces." data-tag="Neon circuits" aria-pressed="false" aria-controls="style-preview"><img src="screenshots/cyberpunk-battle.png" width="640" height="480" loading="lazy" alt="Cyberpunk gameplay with cyan frames over a dark circuit background."><span class="style-choice-text"><span class="style-number">02</span><strong>Cyberpunk</strong><span>Neon circuits</span></span></button>
+<button class="style-choice" type="button" data-style="foundry" data-title="Foundry" data-description="Steel plates, riveted copper frames, and warm industrial lettering." data-tag="Riveted copper" aria-pressed="false" aria-controls="style-preview"><img src="screenshots/foundry-battle.png" width="640" height="480" loading="lazy" alt="Foundry gameplay with copper frames and dark steel panels."><span class="style-choice-text"><span class="style-number">03</span><strong>Foundry</strong><span>Riveted copper</span></span></button>
+<button class="style-choice" type="button" data-style="synthwave" data-title="Synthwave" data-description="Plum surfaces, pink neon frames, and a restrained sunset accent." data-tag="Neon sunset" aria-pressed="false" aria-controls="style-preview"><img src="screenshots/synthwave-battle.png" width="640" height="480" loading="lazy" alt="Synthwave gameplay with plum surfaces, pink frames, and sunset accents."><span class="style-choice-text"><span class="style-number">04</span><strong>Synthwave</strong><span>Neon sunset</span></span></button>
+<button class="style-choice" type="button" data-style="matrix" data-title="Matrix" data-description="Green terminal lettering and sparse code columns around clear playfields." data-tag="Phosphor green" aria-pressed="false" aria-controls="style-preview"><img src="screenshots/matrix-battle.png" width="640" height="480" loading="lazy" alt="Matrix gameplay with green frames, visible board grids, and sparse code accents."><span class="style-choice-text"><span class="style-number">05</span><strong>Matrix</strong><span>Phosphor green</span></span></button>
+</div></div>
+<p class="style-instructions">In the game, open <strong>5 · Select style</strong> to preview and apply your choice, or press <kbd>T</kbd> in the main menu to switch quickly.</p>
+<noscript><p>Open any style thumbnail below for its full-size screenshot.</p><div class="style-fallback"><a href="screenshots/light-battle.png">Commander X16</a><a href="screenshots/cyberpunk-battle.png">Cyberpunk</a><a href="screenshots/foundry-battle.png">Foundry</a><a href="screenshots/synthwave-battle.png">Synthwave</a><a href="screenshots/matrix-battle.png">Matrix</a></div></noscript>
+<div class="screenshot-grid menu-gallery">
+<figure><a href="screenshots/menu.png" aria-label="View full-size screenshot: Main menu"><img src="screenshots/menu.png" width="640" height="480" loading="lazy" alt="Commander X16 main menu with seven pieces in their own left panel"></a><figcaption><h3>Your next battle</h3><p>Solo, versus computer, two players, or a computer demo. Pick a mode and press Enter.</p></figcaption></figure>
+<figure><a href="screenshots/arcade-styles.png" aria-label="View full-size screenshot: Select style"><img src="screenshots/arcade-styles.png" width="640" height="480" loading="lazy" alt="Commander X16 style selection menu showing all five themes and seven block previews"></a><figcaption><h3>Preview before you play</h3><p>Use the arrows or keys 1–5 to preview. Enter applies your choice; Escape keeps your current style.</p></figcaption></figure>
 </div>
 </section>
 <section class="notes" aria-label="Rules and controls">
 <div><p class="eyebrow">HOW TO PLAY</p><h2>A little friendly sabotage.</h2></div>
 <div class="note"><span>01 / CLEAR &amp; ATTACK</span><h3>Make room. Make trouble.</h3><p>Complete rows to clear them. Clearing two, three, or four rows sends one, two, or four garbage rows to your opponent, arriving with their next piece. Your level rises every ten cleared rows.</p></div>
-<div class="note"><span>02 / TAKE CONTROL</span><h3>Every piece counts.</h3><p>Player 1: <kbd>←</kbd> <kbd>→</kbd> move, <kbd>↑</kbd> rotate, <kbd>↓</kbd> soft drop, <kbd>Space</kbd> hard drop. Player 2: <kbd>A</kbd> <kbd>D</kbd> move, <kbd>W</kbd> rotate, <kbd>S</kbd> soft drop, <kbd>Q</kbd> hard drop.</p></div>
-<div class="note"><span>03 / PICK YOUR BATTLE</span><h3>Play. Or just watch.</h3><p>Choose solo, versus computer, local two-player, or computer demo. In the menu, <kbd>T</kbd> swaps Classic and Cyberpunk themes. <kbd>Esc</kbd> returns to the menu.</p></div>
+<div class="note"><span>02 / TAKE CONTROL</span><h3>Every piece counts.</h3><p>Player 1: <kbd>←</kbd> <kbd>→</kbd> move, <kbd>↑</kbd> rotate, <kbd>↓</kbd> soft drop, <kbd>Space</kbd> hard drop. Player 2: <kbd>A</kbd> <kbd>D</kbd> move, <kbd>W</kbd> rotate, <kbd>S</kbd> soft drop, <kbd>Q</kbd> hard drop. Controllers: D-pad moves, B/Y rotates, A/X hard-drops, and Start/Select returns to the menu. Either controller can navigate menus.</p></div>
+<div class="note"><span>03 / PICK YOUR BATTLE</span><h3>Play. Or just watch.</h3><p>Choose solo, versus computer, local two-player, or computer demo. In the menu, <kbd>T</kbd> cycles Commander X16, Cyberpunk, Foundry, Synthwave, and Matrix themes. <kbd>Esc</kbd> returns to the menu.</p></div>
 </section>
-<section class="download"><div><p class="eyebrow">PLAY ON YOUR X16</p><h2>Take the battle with you.</h2><p>The ZIP includes the program, graphics, seven music tracks, and sound effects. Keep the files together for your Commander X16 or desktop emulator.</p></div><a class="download-link" href="CX16-BATTLEBLOCKS.ZIP" download>Download ZIP ↓</a></section>
+<section class="download" id="download"><div><p class="eyebrow">PLAY ON YOUR X16</p><h2>Take the battle with you.</h2><p>The ZIP includes the program, graphics, seven music tracks, and sound effects. Keep the files together for your Commander X16 or desktop emulator.</p></div><a class="download-link" href="CX16-BATTLEBLOCKS.ZIP" download>Download ZIP ↓</a></section>
 </main>
 <footer><p>Made by <a href="https://github.com/ifilot">Ivo Filot</a> · <span id="version">Battle Blocks</span></p><p>Powered by the <a href="https://github.com/X16Community/x16-emulator/releases/tag/r49">X16 emulator r49</a> · <a href="emulator-license.txt">Emulator license</a> · <a href="rom-license.txt">ROM notices</a></p></footer>
 </body></html>

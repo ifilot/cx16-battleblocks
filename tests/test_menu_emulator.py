@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 from tempfile import TemporaryDirectory
 import unittest
 
@@ -38,8 +39,31 @@ class MenuTests(unittest.TestCase):
                             options=["-prg", str(ROOT / "src/BBLOCKS.PRG"), "-run"])
         self.addCleanup(self.emu.close)
         self.emu.advance(180)
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            # BASIC also uses 0x11; require loaded game audio to identify
+            # the actual splash, then allow its input loop to start.
+            if (self.read('_sound_ready') == bytes([1]) and
+                    self.emu.read_memory(0x9F29)[0] & 0x7F == 0x11):
+                break
+            self.emu.advance(30)
+            time.sleep(0.01)
+        else:
+            self.fail('Splash did not finish loading')
+        self.emu.advance(30)
         self.press("Space")
         self.emu.advance(30)
+        # HostFS can still be preparing the menu after a fixed frame wait.
+        # Require its background to appear before inspecting scene state.
+        deadline = time.monotonic() + 30
+        while self.emu.read_memory(0x18000, 2, space='vram') != bytes([1, 0]):
+            if time.monotonic() >= deadline:
+                self.fail('Initial menu did not finish loading')
+            self.emu.advance(5)
+            time.sleep(0.01)
+        # Commander X16 is the shipped default.
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+        self.assertEqual(self.emu.read_memory(0x18000, 2, space='vram'), bytes([1, 0]))
 
     def press(self, key, settle=True):
         self.emu.request("key", key=key, down=True)
@@ -47,12 +71,13 @@ class MenuTests(unittest.TestCase):
         self.emu.request("key", key=key, down=False)
         self.emu.advance(3)
         if settle:
-            for _ in range(180):
-                if not (self.emu.read_memory(0x9F29)[0] & 0x40):
-                    break
-                self.emu.advance(1)
-            else:
-                self.fail('Scene transition did not finish')
+            # HostFS loading can outlast a fixed number of emulated frames.
+            deadline = time.monotonic() + 30
+            while self.emu.read_memory(0x9F29)[0] & 0x40:
+                if time.monotonic() >= deadline:
+                    self.fail('Scene transition did not finish: ' + str(self.emu.request('status')))
+                self.emu.advance(5)
+                time.sleep(0.01)
 
     def read(self, name, offset=0, length=1):
         return self.emu.read_memory(self.symbols[name] + offset, length)
@@ -67,9 +92,9 @@ class MenuTests(unittest.TestCase):
         for option in (8, 10, 12, 14, 16, 18, 20):
             self.assertEqual(self.tile(16, option), 34 if option == row else 0)
 
-    def assert_menu_text(self, row, text):
+    def assert_menu_text(self, row, text, x=None):
         punctuation = {'.': 36, '/': 37, '-': 38, ':': 39, '%': 40, ' ': 0}
-        x = (40 - len(text)) // 2
+        if x is None: x = (40 - len(text)) // 2
         for index, char in enumerate(text.upper()):
             tile = punctuation.get(char)
             if tile is None:
@@ -105,6 +130,146 @@ class MenuTests(unittest.TestCase):
                 self.press('Escape')
                 self.assert_background_box(theme, (2, 7, 10, 16), (15, 7, 23, 16))
 
+    def test_menu_title_survives_theme_submenu_and_game_transitions(self):
+        for theme in (0, 1):
+            expected = (ROOT / 'src' / ('MENU.DAT' if theme else 'MENU-A.DAT')).read_bytes()
+            if theme:
+                self.press('T')
+            for return_from in ('options', 'game'):
+                if return_from == 'options':
+                    self.press('6')
+                    self.press('Return')
+                else:
+                    self.start(2)
+                self.press('Escape')
+                self.emu.advance(30)
+                for offset in range(0, len(expected), 8192):
+                    chunk = expected[offset:offset + 8192]
+                    self.assertEqual(self.emu.read_memory(448 * 256 + offset, len(chunk),
+                                                         space='vram'), chunk)
+            colors = bytes([0xEF, 9, 0xBF, 11]) if theme else bytes([0x6B, 4, 0xCE, 3])
+            self.assertEqual(self.emu.read_memory(0x1FA00 + 246 * 2, 4, space='vram'), colors)
+
+    def test_foundry_uses_sixteen_colors_and_restores_other_themes(self):
+        self.press('T')
+        self.press('T')
+        self.assertEqual(self.read('_screen_style'), bytes([2]))
+        palette = (ROOT / 'src/FOUNDRYP.DAT').read_bytes()
+        colors = {palette[i:i + 2] for i in range(0, 512, 2)}
+        self.assertEqual(len(colors), 16)
+        faces = [palette[index * 2:index * 2 + 2] for index in (157, 87, 227, 142, 58, 199, 255)]
+        self.assertEqual(len(set(faces)), 7)
+        with TemporaryDirectory(prefix='battleblocks-foundry-') as directory:
+            def assert_scene(name):
+                self.assertEqual(self.emu.read_memory(0x1FA00, 512, space='vram'), palette)
+                path = Path(directory) / (name + '.png')
+                self.emu.screenshot(path)
+                with Image.open(path) as image:
+                    self.assertLessEqual(len(image.convert('RGB').getcolors(640 * 480)), 16, name)
+            assert_scene('menu')
+            for entry in ('6', '7'):
+                self.press(entry)
+                self.press('Return')
+                assert_scene('submenu-' + entry)
+                self.press('Escape')
+            for choice in (1, 2, 3, 4):
+                self.start(choice)
+                assert_scene('game-' + str(choice))
+                self.emu.advance(90)
+                assert_scene('running-' + str(choice))
+                self.press('Escape')
+                assert_scene('returned-' + str(choice))
+            self.press('Escape')
+            assert_scene('menu-after-escape')
+        for offset in range(13 * 256, 128 * 256, 8192):
+            length = min(8192, 128 * 256 - offset)
+            self.assertEqual(self.emu.read_memory(offset, length, space='vram'),
+                             (ROOT / 'src/TILES.DAT').read_bytes()[offset:offset + length])
+        self.press('T')
+        self.press('T')
+        self.press('T')
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+        restored = (ROOT / 'src/ARCADE.DAT').read_bytes()
+        for offset in range(0, 128 * 256, 8192):
+            self.assertEqual(self.emu.read_memory(offset, 8192, space='vram'),
+                             restored[offset:offset + 8192])
+        self.assertEqual(self.emu.read_memory(368 * 256, 4096, space='vram'),
+                         (ROOT / 'src/CYBER.DAT').read_bytes())
+
+    def test_synthwave_selection_and_scenes_use_sixteen_colors(self):
+        self.press('5')
+        self.press('Return')
+        self.press('4')
+        self.assertEqual(self.read('_screen_style'), bytes([3]))
+        self.assertEqual(self.tile(3, 17), 34)
+        self.press('Return')
+        palette = (ROOT / 'src/SYNTHP.DAT').read_bytes()
+        self.assertEqual(len({palette[i:i+2] for i in range(0, 512, 2)}), 16)
+        self.assertEqual(len({palette[i*2:i*2+2] for i in (157,87,227,142,58,199,255)}), 7)
+        with TemporaryDirectory(prefix='battleblocks-synthwave-') as directory:
+            def assert_scene(name):
+                self.assertEqual(self.emu.read_memory(0x1FA00, 512, space='vram'), palette)
+                path = Path(directory) / (name+'.png')
+                self.emu.screenshot(path)
+                with Image.open(path) as image:
+                    self.assertLessEqual(len(image.convert('RGB').getcolors(640*480)), 16, name)
+                    self.assertEqual(image.convert('RGB').crop((0, 476, 16, 480)).getcolors(),
+                                     [(16 * 4, (17, 17, 34))], name)
+            assert_scene('menu')
+            for entry in ('5', '6', '7'):
+                self.press(entry)
+                self.press('Return')
+                assert_scene('submenu-'+entry)
+                self.press('Escape')
+            for choice in (1, 2, 3, 4):
+                self.start(choice)
+                self.emu.advance(90)
+                assert_scene('game-'+str(choice))
+                self.assert_hud_number(0, 0, 0)
+                self.press('Escape')
+                assert_scene('return-'+str(choice))
+            self.press('Escape')
+            assert_scene('menu-after-escape')
+        self.press('T')
+        self.assertEqual(self.read('_screen_style'), bytes([4]))
+        self.press('T')
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+
+    def test_matrix_selection_and_scenes_use_sixteen_colors(self):
+        self.press('5')
+        self.press('Return')
+        self.press('5')
+        self.assertEqual(self.read('_screen_style'), bytes([4]))
+        self.assertEqual(self.tile(3, 21), 34)
+        self.press('Return')
+        palette = (ROOT / 'src/MATRIXP.DAT').read_bytes()
+        self.assertEqual(len({palette[i:i+2] for i in range(0, 512, 2)}), 16)
+        self.assertEqual(len({palette[i*2:i*2+2] for i in (157,87,227,142,58,199,255)}), 7)
+        with TemporaryDirectory(prefix='battleblocks-matrix-') as directory:
+            def assert_scene(name):
+                self.assertEqual(self.emu.read_memory(0x1FA00, 512, space='vram'), palette)
+                path = Path(directory) / (name+'.png')
+                self.emu.screenshot(path)
+                with Image.open(path) as image:
+                    self.assertLessEqual(len(image.convert('RGB').getcolors(640*480)), 16, name)
+            assert_scene('menu')
+            for entry in ('5', '6', '7'):
+                self.press(entry)
+                self.press('Return')
+                assert_scene('submenu-'+entry)
+                self.press('Escape')
+            for choice in (1, 2, 3, 4):
+                self.start(choice)
+                self.emu.advance(90)
+                assert_scene('game-'+str(choice))
+                self.assert_hud_number(0, 0, 0)
+                self.press('Escape')
+                assert_scene('return-'+str(choice))
+            self.press('Escape')
+            assert_scene('menu-after-escape')
+        self.press('T')
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+
     def test_menu_shows_all_seven_pieces_in_separate_left_panel(self):
         for theme in (0, 1):
             if theme:
@@ -126,9 +291,29 @@ class MenuTests(unittest.TestCase):
                 self.assertEqual(self.tile(7, y), 0)
             self.assert_background_box(theme, (2, 7, 10, 16), (15, 7, 23, 16))
 
-    def test_loading_is_text_only_in_both_themes_and_restores_scene_layers(self):
+    def test_grid_lines_are_visible_in_both_directions_in_all_styles(self):
+        with TemporaryDirectory(prefix='battleblocks-grid-') as directory:
+            for theme in (0, 1, 2, 3, 4):
+                if theme:
+                    self.press('T')
+                for scene in ('menu', 'game'):
+                    if scene == 'game':
+                        self.start(3)
+                    path = Path(directory) / f'{theme}-{scene}.png'
+                    self.emu.screenshot(path)
+                    with Image.open(path) as image:
+                        x, y = (112, 128) if scene == 'menu' else (80, 240)
+                        horizontal = image.getpixel((x + 7, y))
+                        vertical = image.getpixel((x + 15, y + 7))
+                        face = image.getpixel((x + 7, y + 7))
+                        self.assertEqual(horizontal, vertical, (theme, scene))
+                        self.assertNotEqual(horizontal, face, (theme, scene))
+                    if scene == 'game':
+                        self.press('Escape')
+
+    def test_loading_is_text_only_in_all_themes_and_restores_scene_layers(self):
         bitmap = self.emu.read_memory(0x1F000, 512, space='vram')
-        for theme in (0, 1):
+        for theme in (0, 1, 2, 3, 4):
             if theme:
                 self.press('T')
             self.press('4')
@@ -139,13 +324,13 @@ class MenuTests(unittest.TestCase):
             sprites = self.emu.read_memory(0x1FC00, 1024, space='vram')
             self.assertEqual(sprites[:640], bytes(640))
             self.assertEqual(sprites[640:648],
-                             bytes([0x80, 0x0F, 0x20, 1, 0xE8, 0, 0x0C, 0x72 | theme]))
+                             bytes([0x80, 0x0F, 0x20, 1, 0xE8, 0, 0x0C, (0x74 if theme == 4 else 0x72 | theme)]))
             self.assertEqual(sprites[648:], bytes(376))
             self.assertEqual(self.emu.read_memory(0x1FA00, 2, space='vram'),
-                             bytes([0x12 if theme else 0, 0]))
-            index = 62 if theme else 46
+                             ((bytes([0, 0]), bytes([0x12, 0]), bytes([0x22, 2]), bytes([0x12, 1]), bytes([0x11, 0]))[theme]))
+            index = (46, 62, 46, 62, 78)[theme]
             self.assertEqual(self.emu.read_memory(0x1FA00 + index * 2, 2, space='vram'),
-                             bytes([0xEF, 0] if theme else [0xFF, 0x0F]))
+                             ((bytes([0xFF, 0x0F]), bytes([0xEF, 0]), bytes([0xA6, 0x0E]), bytes([0xED, 0x0F]), bytes([0xFE, 0x0C]))[theme]))
             self.emu.request('breakpoint', action='remove', address=address)
             self.emu.advance(120)
             self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x31)
@@ -157,7 +342,7 @@ class MenuTests(unittest.TestCase):
         self.press('Escape')
         self.press('Escape')
         self.emu.advance(90)
-        self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x11)
+        self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x31)
         self.assertEqual(self.emu.read_memory(0x1F000, 512, space='vram'), bitmap)
 
     def test_boot_has_text_only_loading_before_audio_and_splash_reads(self):
@@ -176,7 +361,12 @@ class MenuTests(unittest.TestCase):
             self.assertTrue(all(byte >> 4 in (0, 14) and byte & 15 in (0, 14)
                                 for byte in bitmap))
             emu.request('breakpoint', action='remove', address=address)
-            emu.advance(180)
+            deadline = time.monotonic() + 30
+            while (emu.read_memory(self.symbols['_sound_ready']) != bytes([1]) or
+                   emu.read_memory(0x9F29)[0] & 0x7F != 0x11):
+                self.assertLess(time.monotonic(), deadline, 'Splash did not finish loading')
+                emu.advance(30)
+                time.sleep(0.01)
             self.assertEqual(emu.read_memory(0x9F29)[0] & 0x7F, 0x11)
 
     def assert_background_box(self, theme, *boxes):
@@ -197,6 +387,10 @@ class MenuTests(unittest.TestCase):
         self.press('6')
         self.press('Return')
         self.assert_menu_text(2, 'AUDIO OPTIONS')
+        self.press('Up')
+        self.assertEqual(self.tile(5, 18), 34)
+        self.press('Down')
+        self.assertEqual(self.tile(5, 10), 34)
         for _ in range(12):
             self.press('Left')
         self.assertEqual(self.read('_sound_music_volume'), bytes([0]))
@@ -222,8 +416,6 @@ class MenuTests(unittest.TestCase):
         self.emu.advance(30)
         self.press('Escape')
         self.emu.advance(90)
-        self.press('Space')
-        self.emu.advance(30)
         self.press('6')
         self.press('Return')
         self.assertEqual(self.read('_sound_music_volume'), bytes([10]))
@@ -260,25 +452,88 @@ class MenuTests(unittest.TestCase):
         self.assert_cursor(14)
         self.assertEqual(self.tile(15, 23), 12)
 
-    def test_style_option_toggles_without_starting_a_game(self):
-        classic = self.emu.read_memory(0x1FA00, 512, space="vram")
-        classic_map = self.emu.read_memory(0x18000, 30 * 128, space="vram")
-        field_tiles = self.emu.read_memory(2 * 256, 512, space="vram")
-        self.press("5")
+    def test_style_menu_previews_applies_and_cancels_without_starting_game(self):
+        arcade = self.emu.read_memory(0x1FA00, 512, space='vram')
+        arcade_map = self.emu.read_memory(0x18000, 30 * 128, space='vram')
+        self.press('5')
+        self.press('Return')
+        self.assert_menu_text(2, 'CHOOSE YOUR STYLE')
+        def assert_card_borders():
+            for y in (7, 11, 15, 19, 23):
+                self.assertEqual(self.tile(1, y), 7)
+                for x in range(2, 24):
+                    self.assertEqual(self.tile(x, y), 12)
+                self.assertEqual(self.tile(24, y), 8)
+        assert_card_borders()
+        self.assert_menu_text(5, 'COMMANDER X16', 7)
+        self.assert_menu_text(9, 'CYBERPUNK', 7)
+        self.assertEqual(self.tile(22, 5), 35)
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+        self.assertEqual(self.tile(3, 5), 34)
+        self.press('Down')
+        self.assertEqual(self.read('_screen_style'), bytes([1]))
+        self.assertEqual(self.tile(3, 9), 34)
+        self.assertEqual(self.tile(22, 5), 35)
+        self.press('Down')
+        self.assertEqual(self.read('_screen_style'), bytes([2]))
+        self.assertEqual(self.tile(3, 13), 34)
+        assert_card_borders()
+        self.press('1')
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+        self.assertEqual(self.tile(3, 5), 34)
+        assert_card_borders()
+        self.press('Escape')
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+        self.assertEqual(self.emu.read_memory(0x1FA00, 512, space='vram'), arcade)
+        self.assertEqual(self.emu.read_memory(0x18000, 30 * 128, space='vram'), arcade_map)
         self.assert_cursor(16)
-        self.press("Return")
-        self.assertEqual(self.read("_screen_style"), bytes([1]))
+        self.press('Return')
+        self.press('3')
+        self.press('Space')
+        self.assertEqual(self.read('_screen_style'), bytes([2]))
         self.assert_cursor(16)
-        self.assertEqual(self.emu.read_memory(0x18000, 2, space="vram"), bytes([112, 1]))
-        self.assertNotEqual(self.emu.read_memory(0x1FA00, 512, space="vram"), classic)
-        self.assertEqual(self.emu.read_memory(2 * 256, 512, space="vram"), field_tiles)
-        self.press("Space")
-        self.assertEqual(self.read("_screen_style"), bytes([0]))
-        self.assertEqual(self.emu.read_memory(0x1FA00, 512, space="vram"), classic)
-        self.assertEqual(self.emu.read_memory(0x18000, 30 * 128, space="vram"), classic_map)
+        self.press('Return')
+        self.assertEqual(self.tile(22, 13), 35)
+        self.assertEqual(self.tile(22, 5), 0)
+        self.press('Right')
+        self.assertEqual(self.read('_screen_style'), bytes([3]))
+        self.assertEqual(self.tile(3, 17), 34)
+        self.press('Right')
+        self.assertEqual(self.read('_screen_style'), bytes([4]))
+        self.assertEqual(self.tile(3, 21), 34)
+        self.press('Right')
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+        self.press('Right')
+        self.assertEqual(self.read('_screen_style'), bytes([1]))
+        self.press('Left')
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+        self.press('Return')
+        self.assertEqual(self.read('_screen_style'), bytes([0]))
+        self.assert_cursor(16)
+        self.assertEqual(self.emu.read_memory(0x18000, 30 * 128, space='vram'), arcade_map)
 
-    def test_style_survives_game_and_splash_transitions(self):
-        classic = self.emu.read_memory(0x1FA00, 512, space="vram")
+    def test_playfield_rims_remain_continuous_beside_statistics_in_all_styles(self):
+        with TemporaryDirectory(prefix='battleblocks-rims-') as directory:
+            for theme in range(5):
+                if theme:
+                    self.press('T')
+                self.start(2)
+                path = Path(directory) / (str(theme) + '.png')
+                self.emu.screenshot(path)
+                with Image.open(path) as image:
+                    for offset in (0, 320):
+                        reference = image.crop((176 + offset, 128, 180 + offset, 144))
+                        for y in range(240, 448, 16):
+                            rendered = image.crop((176 + offset, y, 180 + offset, y + 16))
+                            self.assertIsNone(ImageChops.difference(rendered, reference).getbbox(),
+                                              f'theme {theme}, board {offset}, y {y}')
+                surface = ('ARCADE.DAT', 'TILES.DAT', 'FOUNDRY.DAT', 'SYNTH.DAT', 'MATRIX.DAT')[theme]
+                self.assertEqual(self.hud_pixels(176, 400, 8, 1),
+                                 [list((ROOT / 'src' / surface).read_bytes()[10 * 256:10 * 256 + 8])])
+                self.press('Escape')
+
+    def test_style_survives_game_and_menu_transitions(self):
+        arcade = self.emu.read_memory(0x1FA00, 512, space="vram")
         self.press("T")
         cyberpunk = self.emu.read_memory(0x1FA00, 512, space="vram")
         self.start(3)
@@ -292,13 +547,15 @@ class MenuTests(unittest.TestCase):
         self.press("Escape")
         self.emu.advance(90)
         self.assertEqual(self.read("_screen_style"), bytes([1]))
-        self.press("Space")
         self.emu.advance(30)
         self.assertEqual(self.emu.read_memory(0x1FA00, 512, space="vram"), cyberpunk)
         self.press("T")
-        self.assertEqual(self.emu.read_memory(0x1FA00, 512, space="vram"), classic)
+        self.press("T")
+        self.press("T")
+        self.press("T")
+        self.assertEqual(self.emu.read_memory(0x1FA00, 512, space="vram"), arcade)
         self.start(1)
-        self.assertEqual(self.emu.read_memory(0x1FA00, 512, space="vram"), classic)
+        self.assertEqual(self.emu.read_memory(0x1FA00, 512, space="vram"), arcade)
 
     def test_enter_starts_solo_with_gravity_and_no_opponent(self):
         self.start(1)
@@ -310,7 +567,7 @@ class MenuTests(unittest.TestCase):
         self.assertLess(self.read("_gs_player1", 10)[0], y)
         self.assertEqual(self.read("_gs_player2", 51, 240), bytes([255]) * 240)
 
-    def test_approved_banners_follow_modes_and_survive_style_and_title_changes(self):
+    def test_approved_banners_follow_modes_and_survive_style_changes(self):
         sys.path.insert(0, str(ROOT / 'assets/scripts'))
         from bitmap_font import FONT
         from PIL import ImageDraw
@@ -319,15 +576,11 @@ class MenuTests(unittest.TestCase):
         modes = ((1, ((False, 1),)), (2, ((False, 1), (True, 1))),
                  (3, ((False, 1), (False, 2))), (4, ((True, 1), (True, 2))))
         with TemporaryDirectory(prefix='battleblocks-banners-') as directory:
-            for style in ('light', 'cyberpunk'):
-                if style == 'cyberpunk':
-                    # Loading the splash replaces artwork; returning must reload banners.
-                    self.press('Escape')
-                    self.emu.advance(90)
-                    self.press('Space')
-                    self.emu.advance(30)
+            for style in ('light', 'cyberpunk', 'foundry', 'synthwave', 'matrix'):
+                if style != 'light':
                     self.press('T')
-                palette = json.loads((ROOT / 'assets/palette' / (style + '.json')).read_text())
+                palette_name = 'arcade' if style == 'light' else style
+                palette = json.loads((ROOT / 'assets/palette' / (palette_name + '.json')).read_text())
                 for choice, players in modes:
                     self.start(choice)
                     path = Path(directory) / 'actual.png'
@@ -346,7 +599,7 @@ class MenuTests(unittest.TestCase):
                                     if bit == '1':
                                         draw.rectangle((x + col * 2, 7 + row * 2,
                                                         x + col * 2 + 1, 8 + row * 2),
-                                                       fill=tuple(palette[11]))
+                                                       fill=tuple(palette[247 if style == 'foundry' else 1 if style in ('synthwave', 'matrix') else 11]))
                         x = 16 + player * 320
                         rendered = actual.crop((x, 0, x + 274, 28))
                         self.assertIsNone(ImageChops.difference(rendered, expected).getbbox(),
@@ -355,9 +608,16 @@ class MenuTests(unittest.TestCase):
                         self.assertEqual(self.tile(21, 0), 0)
                     # Banner atlases must preserve every legacy game tile,
                     # including all seven composite next-piece previews.
+                    expected_tiles = bytearray(original_tiles)
+                    if style == 'light':
+                        expected_tiles = (ROOT / 'src/ARCADE.DAT').read_bytes()
+                    elif style in ('synthwave', 'matrix'):
+                        expected_tiles = (ROOT / 'src' / ('SYNTH.DAT' if style == 'synthwave' else 'MATRIX.DAT')).read_bytes()
+                    elif style == 'foundry':
+                        expected_tiles[:13 * 256] = (ROOT / 'src/FOUNDRY.DAT').read_bytes()
                     for offset in range(0, 128 * 256, 8192):
                         self.assertEqual(self.emu.read_memory(offset, 8192, space='vram'),
-                                         original_tiles[offset:offset + 8192])
+                                         expected_tiles[offset:offset + 8192])
                     self.press('Escape')
                     self.emu.advance(30)
 
@@ -616,17 +876,32 @@ class MenuTests(unittest.TestCase):
         self.assertEqual(self.read("_gs_player1", 293, 6), bytes(6))
         self.assertEqual(self.read("_gs_player2", 293, 6), bytes(6))
 
-    def test_escape_from_menu_restores_selected_splash(self):
-        self.press("Escape")
-        self.emu.advance(60)
-        with TemporaryDirectory(prefix="battleblocks-menu-") as directory:
-            capture = Path(directory) / "splash.png"
-            self.assertTrue(self.emu.screenshot(capture)["captured"])
-            with Image.open(capture) as actual, Image.open(ROOT / "assets/png/titlescreen.png") as source:
-                self.assertIsNone(ImageChops.difference(source.convert("RGB"), actual).getbbox())
-        self.press("Return")
-        self.emu.advance(30)
-        self.assert_cursor(10)
+    def test_escape_from_menu_keeps_selection_without_reloading_assets(self):
+        self.press('7')
+        snapshot = self.emu.read_memory(0x1A000, 30 * 128, space='vram')
+        for name in ('_screen_init_title', '_screen_load_tiles'):
+            self.emu.request('breakpoint', action='add', address=self.symbols[name])
+        for _ in range(3):
+            self.press('Escape')
+            self.emu.advance(60)
+            self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x31)
+            self.assert_cursor(20)
+            self.assertEqual(self.emu.read_memory(0x1A000, 30 * 128, space='vram'), snapshot)
+        for name in ('_screen_init_title', '_screen_load_tiles'):
+            self.emu.request('breakpoint', action='remove', address=self.symbols[name])
+
+    def test_repeated_submenus_reuse_palette_without_disk_reads(self):
+        palette = self.emu.read_memory(0x1FA00, 512, space='vram')
+        address = self.symbols['_screen_load_tiles']
+        self.emu.request('breakpoint', action='add', address=address)
+        for key, heading in (('6', 'AUDIO OPTIONS'), ('7', 'ABOUT BATTLE BLOCKS')) * 2:
+            self.press(key)
+            self.press('Return')
+            self.assert_menu_text(2, heading)
+            self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x31)
+            self.assertEqual(self.emu.read_memory(0x1FA00, 512, space='vram'), palette)
+            self.press('Escape')
+        self.emu.request('breakpoint', action='remove', address=address)
 
     def test_escape_skips_game_over_animation_immediately(self):
         self.start(3)
@@ -704,8 +979,9 @@ class MenuTests(unittest.TestCase):
             self.assert_hud_number(0, field, value)
         self.assertEqual(self.read("_gs_player1", 291)[0], 1)
         self.assertEqual(self.read("_gs_player2", 291)[0], 21)
-        # Composite HUD tiles preserve the adjacent playfield rim.
-        self.assertEqual(self.hud_pixels(176, 400, 2, 1), [[16, 16]])
+        # Shared HUD cells preserve the themed rim on layer one.
+        self.assertEqual(self.hud_pixels(176, 400, 8, 1),
+                         [list((ROOT / 'src/ARCADE.DAT').read_bytes()[10 * 256:10 * 256 + 8])])
 
     def statistics(self, player):
         data = self.read(player, 326, 22)

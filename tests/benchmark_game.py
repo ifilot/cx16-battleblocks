@@ -71,6 +71,7 @@ def build(directory, source_override=None):
                     '-C', str(ROOT / 'src/rom.cfg'), '--asm-include-dir', str(ROOT / 'src'),
                     str(harness), *sources,
                     str(ROOT / 'src/screen_asm.s'), str(ROOT / 'src/sound_asm.s'),
+                    str(ROOT / 'src/input_asm.s'), str(ROOT / 'src/transition.s'),
                     str(ROOT / 'src/zsmkit.lib')], cwd=directory, check=True)
     return binary, symbols(labels)
 

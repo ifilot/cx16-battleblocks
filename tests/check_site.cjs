@@ -27,17 +27,40 @@ const server = http.createServer((request,response) => {
     browser = await chromium.launch({headless:true, executablePath:process.env.CHROMIUM_PATH || undefined,
       args:['--enable-unsafe-swiftshader']});
     const page = await browser.newPage({viewport:{width:1280,height:1000}});
+    // Synthetic standard gamepads exercise SDL and the real KERNAL path.
+    await page.addInitScript(() => {
+      window.testPads = [0,1].map(index => ({index, id:'Xbox 360 Controller',
+        mapping:'standard', connected:true, timestamp:0, axes:[0,0,0,0],
+        buttons:Array.from({length:17},()=>({pressed:false,touched:false,value:0}))}));
+      Object.defineProperty(navigator,'getGamepads',{value:()=>window.testPads});
+    });
     const errors=[], failed=[];
     page.on('pageerror', error=>errors.push(error.message));
     page.on('response', response=>{if(response.status()>=400) failed.push(response.url());});
     page.setDefaultTimeout(30000);
     await page.goto(`http://127.0.0.1:${server.address().port}${prefix}`);
+    const styles = ['Commander X16', 'Cyberpunk', 'Foundry', 'Synthwave', 'Matrix'];
+    const choices = page.locator('[data-style]');
+    assert.equal(await choices.count(), styles.length);
+    assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor), 'rgb(238, 240, 244)');
+    for (let index = 0; index < styles.length; index++) {
+      await choices.nth(index).click();
+      assert.equal(await page.locator('#style-preview-title').textContent(), styles[index]);
+      assert.equal(await choices.nth(index).getAttribute('aria-pressed'), 'true');
+      assert.equal(await page.locator('[data-style][aria-pressed="true"]').count(), 1);
+      assert.equal(await page.locator('#style-preview').getAttribute('src'), await choices.nth(index).locator('img').getAttribute('src'));
+      await page.waitForFunction(()=>document.querySelector('#style-preview').complete && document.querySelector('#style-preview').naturalWidth===640);
+    }
+    await choices.nth(0).focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#style-preview-title').textContent(), styles[0]);
+    await page.evaluate(()=>scrollTo(0,0));
     await page.screenshot({path:path.join(captures,'website.png'),fullPage:true});
     assert.equal(await page.locator('#version').textContent(),`v${fs.readFileSync(path.join(root,'VERSION'),'utf8').trim()} · ${JSON.parse(fs.readFileSync(path.join(site,'build.json'))).commit.slice(0,7)}`);
     await page.click('#play');
     await page.waitForFunction(()=>typeof FS!=='undefined' && Module.calledRun && !document.querySelector('#canvas').hidden);
     const manifest=JSON.parse(fs.readFileSync(path.join(site,'game/manifest.json')));
-    assert.equal(manifest.resources.length,19);
+    assert.equal(manifest.resources.length,42);
     const loaded=await page.evaluate(()=>FS.readdir('/'));
     for(const file of manifest.resources) assert(loaded.includes(file),`${file} missing from emulator filesystem`);
     assert.deepEqual(await page.evaluate(()=>[canvas.width,canvas.height]),[640,480]);
@@ -57,11 +80,14 @@ actual=Image.open(sys.argv[1]).convert('RGB')
 expected=Image.open(sys.argv[2]).convert('RGB')
 assert actual.size==(640,480),actual.size
 box1=tuple(map(int,sys.argv[3:7]));box2=tuple(map(int,sys.argv[7:11]))
-# Chromium element screenshots can blend the outermost canvas edge with CSS
-# borders. Compare the native artwork inside that edge, including all glyphs.
+# Chromium element screenshots can blend the outermost canvas rows with CSS
+# borders. Compare the native artwork inside those rows, including all glyphs.
 if box1[1]==0:
     box1=(box1[0],1,box1[2],box1[3])
     box2=(box2[0],box2[1]+1,box2[2],box2[3])
+if box1[3]==480:
+    box1=(box1[0],box1[1],box1[2],479)
+    box2=(box2[0],box2[1],box2[2],box2[3]-1)
 assert ImageChops.difference(actual.crop(box1),expected.crop(box2)).getbbox() is None
 `,capture,path.join(root,reference),...actualBox.map(String),...expectedBox.map(String)],{encoding:'utf8'});
         if(result.status===0) return;
@@ -71,9 +97,63 @@ assert ImageChops.difference(actual.crop(box1),expected.crop(box2)).getbbox() is
       }
     }
     const banner=(name,style,role,x)=>matches(name,`tests/fixtures/banners/${style}-${role}.png`,[x,0,x+274,28],[0,0,274,28]);
-    await matches('splash','assets/png/titlescreen.png',[0,0,640,480]);
+    async function pad(index,button) {
+      await page.evaluate(([index,button]) => {
+        testPads[index].buttons[button]={pressed:true,touched:true,value:1};
+        testPads[index].timestamp=performance.now();
+      },[index,button]);
+      await page.waitForTimeout(150);
+      await page.evaluate(([index,button]) => {
+        testPads[index].buttons[button]={pressed:false,touched:false,value:0};
+        testPads[index].timestamp=performance.now();
+      },[index,button]);
+      await page.waitForTimeout(150);
+    }
+    await matches('splash','docs/screenshots/splash.png',[0,0,640,480]);
+    await pad(1,9); // Controller 2 Start dismisses the splash.
+    await matches('menu','docs/screenshots/menu.png',[0,0,640,368]);
+    await page.locator('#canvas').press('5',{delay:120});
     await page.locator('#canvas').press('Enter',{delay:120});
-    await matches('menu','docs/screenshots/menu.png',[112,112,530,352]);
+    await matches('style-menu','docs/screenshots/arcade-styles.png',[0,0,640,480]);
+    await page.locator('#canvas').press('2',{delay:120});
+    await page.locator('#canvas').press('Escape',{delay:120});
+    await matches('style-cancel','docs/screenshots/menu.png',[0,0,640,128]);
+    await page.locator('#canvas').press('Enter',{delay:120});
+    await page.locator('#canvas').press('3',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
+    await page.locator('#canvas').press('2',{delay:120});
+    await matches('foundry-menu','docs/screenshots/foundry-menu.png',[0,0,640,368]);
+    await page.locator('#canvas').press('Enter',{delay:120});
+    await page.waitForTimeout(800);
+    await page.locator('#canvas').press('Escape',{delay:120});
+    await matches('foundry-return','docs/screenshots/foundry-menu.png',[0,0,640,368]);
+    await page.locator('#canvas').press('t',{delay:120});
+    await matches('synthwave-menu','docs/screenshots/synthwave-menu.png',[0,0,640,368]);
+    await page.locator('#canvas').press('5',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
+    await matches('synthwave-styles','docs/screenshots/synthwave-styles.png',[0,0,640,480]);
+    await page.locator('#canvas').press('4',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
+    await page.locator('#canvas').press('2',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
+    await banner('synthwave-player','synthwave','player',16);
+    await banner('synthwave-computer','synthwave','computer',336);
+    await page.locator('#canvas').press('Escape',{delay:120});
+    await page.locator('#canvas').press('t',{delay:120});
+    await matches('matrix-menu','docs/screenshots/matrix-menu.png',[0,0,640,368]);
+    await page.locator('#canvas').press('5',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
+    await page.locator('#canvas').press('5',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
+    await page.locator('#canvas').press('2',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
+    await banner('matrix-player','matrix','player',16);
+    await banner('matrix-computer','matrix','computer',336);
+    await page.locator('#canvas').press('Escape',{delay:120});
+    await page.locator('#canvas').press('Escape',{delay:120});
+    await matches('matrix-stays-in-menu','docs/screenshots/matrix-menu.png',[0,0,640,368]);
+    await page.locator('#canvas').press('t',{delay:120});
+    await page.waitForTimeout(500);
     await page.locator('#canvas').press('2',{delay:120});
     await page.locator('#canvas').press('Enter',{delay:120});
     await banner('light-battle','light','player',16);
@@ -85,6 +165,26 @@ assert ImageChops.difference(actual.crop(box1),expected.crop(box2)).getbbox() is
     assert.equal(await page.locator('#audio').getAttribute('aria-pressed'),'false');
     await page.locator('#canvas').press('Escape',{delay:120});
     await page.waitForTimeout(600);
+    await page.locator('#canvas').press('3',{delay:120});
+    await pad(0,9); // Controller 1 Start launches the local battle.
+    await matches('controller-local','tests/fixtures/banners/light-player.png',
+      [336,0,372,28],[0,0,36,28]);
+    // Standard gamepad B maps to SNES A: hard-drop on player 2 only.
+    await pad(1,1);
+    await page.locator('#canvas').screenshot({path:path.join(captures,'controller-drop.png')});
+    const controllerDrop=spawnSync('python3',['-c',`
+import sys
+from PIL import Image
+image=Image.open(sys.argv[1]).convert('RGB')
+colors={(51,204,238),(238,221,68),(153,102,204),(85,187,119),
+        (221,68,85),(85,136,204),(221,85,170)}
+for x,occupied in ((16,False),(336,True)):
+    pixels=set(image.crop((x,380,x+160,447)).getdata())
+    assert bool(pixels & colors)==occupied,(x,pixels & colors)
+`,path.join(captures,'controller-drop.png')],{encoding:'utf8'});
+    assert.equal(controllerDrop.status,0,controllerDrop.stderr);
+    await pad(1,8); // Controller 2 Select returns to the menu.
+    await matches('controller-return','docs/screenshots/menu.png',[0,0,640,128]);
     await page.locator('#canvas').press('t',{delay:120});
     await page.waitForTimeout(500);
     await page.locator('#canvas').press('4',{delay:120});
@@ -126,6 +226,9 @@ assert np.all(blocks==blocks[:,0:1,:,0:1,:]),'Fullscreen interpolates pixels'
     await page.evaluate(()=>document.exitFullscreen());
     await page.setViewportSize({width:390,height:900});
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile page overflows');
+    await page.locator('[data-style="matrix"]').click();
+    assert.equal(await page.locator('#style-preview-title').textContent(), 'Matrix');
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Mobile style preview overflows');
     assert.equal((await page.locator('#canvas').boundingBox()).width,640);
     assert(await page.locator('#touch-keys').isVisible());
     // Touch keyboard must navigate out of the match and back into a solo game.
@@ -147,6 +250,6 @@ assert np.all(blocks==blocks[:,0:1,:,0:1,:]),'Fullscreen interpolates pixels'
     await page.click('#restart');
     await page.waitForFunction(()=>!document.querySelector('#play').disabled && !document.querySelector('#cover').hidden);
     assert.deepEqual(errors,[]);assert.deepEqual(failed,[]);
-    console.log('PASS: WASM boot, 19 runtime files, exact splash/menu/banners, real AI demo, theme switching, audio, integer fullscreen pixels, mobile controls and restart under the Pages subpath.');
+    console.log('PASS: WASM boot, 42 runtime files, two gamepads, five accessible style previews, exact splash/menu/banners, real AI demo, theme switching, audio, integer fullscreen pixels, mobile controls and restart under the Pages subpath.');
   } finally {if(browser)await browser.close();server.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;server.close();});

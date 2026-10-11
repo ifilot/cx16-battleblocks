@@ -1,6 +1,6 @@
 EMU ?= $(or $(firstword $(wildcard ../x16-emulator/build/x16emu $(HOME)/emulator-linux/x16emu)),$(abspath ../x16-emulator/build/x16emu))
 ROM ?= $(or $(firstword $(wildcard $(dir $(EMU))rom.bin ../emulator/rom.bin $(HOME)/emulator-linux/rom.bin)),$(abspath ../emulator/rom.bin))
-EMU_FLAGS ?= -scale 2
+EMU_FLAGS ?= -scale 2 -joy1 -joy2
 DEMO_GIF ?= img/cx16-battleblocks-gameplay.gif
 DEMO_CYBERPUNK_GIF ?= img/cx16-battleblocks-cyberpunk-gameplay.gif
 SOUND_SOURCE ?= $(abspath ../cx16-sound-generator/build/battleblocks/psg)

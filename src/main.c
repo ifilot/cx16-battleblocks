@@ -22,6 +22,7 @@
 #include "game.h"
 #include "ai.h"
 #include "menu.h"
+#include "input.h"
 #include "sound.h"
 
 /*
@@ -29,23 +30,19 @@
  * matches and results while keeping keyboard input and AI work responsive.
  */
 
-static uint8_t game_tiles_loaded;
-
 /**
  * @brief Load the splash and wait for Enter or Space
  */
 static void show_title(void) {
     uint8_t key;
-    game_tiles_loaded = 0;
     screen_init_title();
     screen_load_tiles("titlepal.dat", 0x1FA00UL);
     screen_load_tiles("title.dat", TILEBASE);
     screen_load_tiles("titlemap.dat", TITLE_MAPBASE);
-    screen_apply_title_style();
     VERA.display.video = 0x11;
     sound_title();
     do {
-        key = cbm_k_getin();
+        key = input_key();
     } while(key != KEYCODE_SPACE && key != KEYCODE_RETURN);
     sound_menu_effect(SFX_START);
 }
@@ -55,11 +52,6 @@ static void show_title(void) {
  */
 static void show_menu(void) {
     screen_transition_begin();
-    if(!game_tiles_loaded) {
-        screen_load_tiles("tiles.dat", TILEBASE);
-        screen_load_tiles("cyber.dat", (uint32_t)TILE_CYBERPUNK_FIRST * 256);
-        game_tiles_loaded = 1;
-    }
     screen_fill_layer(LAYER0, TILE_BG0);
     screen_fill_layer(LAYER1, TILE_NONE);
     screen_init_menu();
@@ -142,7 +134,7 @@ static void step_computer(struct GameState* player,
  * @brief Run a match; return one when Escape requests the menu
  */
 static uint8_t play_game(void) {
-    uint8_t key;
+    uint8_t key, port;
     uint8_t cpu1_tick = game_get_tick();
     uint8_t cpu2_tick = cpu1_tick;
     while(game_is_running()) {
@@ -155,6 +147,13 @@ static uint8_t play_game(void) {
             return 1;
         }
         game_parse_keyboard(key);
+        for(port = 1; port <= 2; ++port) {
+            key = input_controller(port);
+            if(key == KEYCODE_ESCAPE || key == KEYCODE_RETURN) return 1;
+            if(game_mode != GAME_MODE_DEMO &&
+               (port == 1 || game_mode == GAME_MODE_LOCAL))
+                game_parse_input(port == 1 ? &gs_player1 : &gs_player2, key);
+        }
         if(game_mode == GAME_MODE_DEMO) {
             step_computer(&gs_player1, &pfeval_player1, &cpu1_tick);
         }
@@ -178,7 +177,7 @@ static void show_result(void) {
     while(gs_player1.lose_row < 20 || gs_player2.lose_row < 20) {
         game_update_blockfill(&gs_player1);
         game_update_blockfill(&gs_player2);
-        key = cbm_k_getin();
+        key = input_key();
         if(key == KEYCODE_RETURN || key == KEYCODE_SPACE || key == KEYCODE_ESCAPE) return;
     }
     screen_create_lined_rectangle(10, 13, 20, 6);
@@ -193,7 +192,7 @@ static void show_result(void) {
     }
     menu_centertext(18, "ENTER FOR MENU");
     do {
-        key = cbm_k_getin();
+        key = input_key();
     } while(key != KEYCODE_RETURN && key != KEYCODE_SPACE && key != KEYCODE_ESCAPE);
 }
 
@@ -210,10 +209,6 @@ void main(void) {
     while(1) {
         show_menu();
         selected = menu_select(mode);
-        if(selected == MENU_BACK) {
-            show_title();
-            continue;
-        }
         mode = selected;
         show_game(mode);
         if(!play_game()) show_result();

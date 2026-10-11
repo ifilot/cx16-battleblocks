@@ -166,6 +166,14 @@ void game_update_shadow(struct GameState* gamestate);
 void game_parse_keyboard(uint8_t keycode);
 
 /**
+ * @brief Apply a keyboard or controller action to a running human board
+ *
+ * @param player  Board receiving the action
+ * @param keycode Shared keyboard action code
+ */
+void game_parse_input(struct GameState* player, uint8_t keycode);
+
+/**
  * @brief Read the low byte of the KERNAL 60 Hz clock
  *
  * @return Low clock byte; wraps every 256 ticks

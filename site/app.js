@@ -20,7 +20,7 @@ function fail(message) {
 // The release's Emscripten runtime reads this global before it starts.
 var Module = {
   canvas,
-  arguments: ['-prg', 'BBLOCKS.PRG', '-run', '-ram', '512', '-scale', '1', '-quality', 'nearest', '-keymap', 'en-us'],
+  arguments: ['-prg', 'BBLOCKS.PRG', '-run', '-ram', '512', '-scale', '1', '-quality', 'nearest', '-keymap', 'en-us', '-joy1', '-joy2'],
   locateFile: name => `emulator/${name}`,
   preRun: [function () {
     ENV.SDL_EMSCRIPTEN_KEYBOARD_ELEMENT = '#canvas';
@@ -183,3 +183,21 @@ document.querySelectorAll('[data-key]').forEach(button => {
   });
 });
 window.addEventListener('blur', () => heldKeys.forEach((_, button) => release(button)));
+
+// Screenshot previews are independent of the emulator and never change a match.
+const styleChoices = [...document.querySelectorAll('[data-style]')];
+styleChoices.forEach(button => {
+  button.addEventListener('click', () => {
+    const image = button.querySelector('img');
+    const preview = document.getElementById('style-preview');
+    preview.src = image.getAttribute('src');
+    preview.alt = image.alt;
+    const link = document.getElementById('style-preview-link');
+    link.href = image.getAttribute('src');
+    link.setAttribute('aria-label', `Open full-size ${button.dataset.title} screenshot`);
+    document.getElementById('style-preview-title').textContent = button.dataset.title;
+    document.getElementById('style-preview-description').textContent = button.dataset.description;
+    document.getElementById('style-preview-tag').textContent = button.dataset.tag;
+    styleChoices.forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
+  });
+});

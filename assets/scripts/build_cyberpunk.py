@@ -1,4 +1,4 @@
-"""Pack the approved Microchip circuit wallpaper without resampling.
+"""Pack the Microchip circuit wallpaper with neutral background contacts.
 
 Sixteen 16x16 tiles form a seamless 64x64 repeat. Palette slots 242-245
 are dedicated to this theme. Tiles 368-383 end immediately before MAPBASE0.
@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 def build():
     image = Image.open(ROOT / 'assets/png/cyberpunk-background.png')
     assert image.mode == 'P' and image.size == (64, 64)
-    pixels = bytes(image.getdata())
+    # Tone down the wallpaper's magenta contacts independently of neon icons.
+    pixels = bytes(244 if pixel == 245 else pixel for pixel in image.getdata())
     assert set(pixels) <= {242, 243, 244, 245}
     tiles = b"".join(pixels[(ty * 16 + y) * 64 + tx * 16:
                           (ty * 16 + y) * 64 + tx * 16 + 16]

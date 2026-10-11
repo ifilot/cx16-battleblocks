@@ -50,49 +50,21 @@ def controller(palette, cyber):
     return image
 
 
-def monitor(palette, cyber):
-    image = Image.new('RGBA', (32, 24))
-    d = ImageDraw.Draw(image)
-    ink = palette[11]
-    shell = palette[147 if cyber else 15]
-    screen = palette[242 if cyber else 157]
-    eye = palette[255 if cyber else 18]
-    highlight = palette[1]
-    # Use the full 32x24 footprint for the CRT; no stand underneath.
-    shape = [(3, 0), (28, 0), (31, 3), (31, 20), (28, 23),
-             (3, 23), (0, 20), (0, 3)]
-    d.polygon(shape, fill=shell)
-    d.line(shape + [shape[0]], fill=ink)
-    d.line((3, 1, 28, 1), fill=highlight)
-    d.rectangle((3, 3, 28, 19), fill=screen, outline=ink)
-    # Larger inward-sloping brows, eyes and determined frown.
-    d.line((7, 6, 12, 9), fill=eye, width=2)
-    d.line((24, 6, 19, 9), fill=eye, width=2)
-    d.rectangle((10, 11, 12, 13), fill=eye)
-    d.rectangle((19, 11, 21, 13), fill=eye)
-    d.line(((13, 17), (15, 15), (17, 15), (19, 17)), fill=eye)
-    # Blush / neon cheek pixels keep the expression playful.
-    d.line((6, 15, 8, 15), fill=palette[245 if cyber else 241])
-    d.line((23, 15, 25, 15), fill=palette[245 if cyber else 241])
-    d.point((28, 21), fill=palette[142])
-    if cyber:
-        d.line((4, 21, 8, 21), fill=palette[255])
-        d.line((25, 21, 26, 21), fill=palette[255])
-    else:
-        d.line((4, 21, 8, 21), fill=palette[12])
-    return image
-
-
-def nameplate(image, palette, cyber, offset, icon, label, role):
+def nameplate(image, palette, cyber, offset, icon, label, role, foundry=False, synthwave=False):
     d = ImageDraw.Draw(image)
     x, y, w, h = 16 + offset, 0, 272, 26
     # A light card or dark neon card, following the existing score-card style.
     d.rectangle((x + 2, y + 2, x + w + 1, y + h + 1), fill=palette[239])
-    d.rectangle((x, y, x + w - 1, y + h - 1), fill=palette[30], outline=palette[11])
-    if not cyber:
+    d.rectangle((x, y, x + w - 1, y + h - 1), fill=palette[30], outline=palette[8 if foundry else 16 if synthwave else 11])
+    if foundry:
+        d.line((x + 1, 1, x + w - 2, 1), fill=palette[7])
+        for bolt_x in (x + 2, x + w - 3):
+            for bolt_y in (3, 22):
+                d.point((bolt_x, bolt_y), fill=palette[15])
+    elif not cyber:
         d.line((x + 1, 1, x + w - 2, 1), fill=palette[1])
     d.line((x + 43, 5, x + 43, 20), fill=palette[147])
     image.paste(icon, (x + 6, 1), icon)
-    text(image, label, x + 52, 7, palette[11], 2)
+    text(image, label, x + 52, 7, palette[247 if foundry else 1 if synthwave else 11], 2)
     text(image, role, x + w - 10 - (len(role) * 6 - 1), 10, palette[11])
 

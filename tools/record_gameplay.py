@@ -1,4 +1,4 @@
-"""Record Light and Cyberpunk gameplay GIFs from real X16 AgentBridge input."""
+"""Record Commander X16 and Cyberpunk gameplay GIFs from real X16 AgentBridge input."""
 import argparse
 from pathlib import Path
 import re
@@ -40,7 +40,7 @@ def encode(frames, output):
 
 def record(agent_class, emulator, rom, symbols, theme, output):
     frames = []
-    label = 'Light' if theme == 0 else 'Cyberpunk'
+    label = 'Commander X16' if theme == 0 else 'Cyberpunk'
     with tempfile.TemporaryDirectory(prefix='battleblocks-demo-') as directory:
         runtime = Path(directory)
         for name in RUNTIME_FILES:
@@ -72,7 +72,7 @@ def record(agent_class, emulator, rom, symbols, theme, output):
             capture(20)
             key('Space')
             capture(10)
-            if theme:
+            while read('screen_style') != bytes([theme]):
                 key('T')
                 capture(10)
             assert read('screen_style') == bytes([theme]), 'Theme selection failed'
