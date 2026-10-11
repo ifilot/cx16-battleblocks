@@ -12,7 +12,7 @@ import test_menu_emulator as menu_tests
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from package_game import RUNTIME_FILES, version
-from bundle_resources import graphics_bundle
+from bundle_resources import graphics_bundle, audio_bundle
 
 
 class DistributionTests(unittest.TestCase):
@@ -53,7 +53,7 @@ class DistributionTests(unittest.TestCase):
         header = (ROOT / 'src/resources_generated.h').read_text()
         for name, offset, size in entries:
             self.assertEqual(data[offset:offset + size], (ROOT / 'src' / name.upper()).read_bytes())
-            self.assertIn(f'{{{offset}UL, {size}U}}', header)
+            self.assertIn(f'{{{{{(offset >> 8) & 255}, {offset >> 16}}}, {size}U}}', header)
 
     def test_audio_bundle_preserves_playback_bank_addresses(self):
         data = (ROOT / 'src/AUDIO.BIN').read_bytes()
@@ -63,6 +63,16 @@ class DistributionTests(unittest.TestCase):
             original = (ROOT / 'assets/sound' / name).read_bytes()
             offset = (bank - 2) * 8192
             self.assertEqual(data[offset:offset + len(original)], original)
+
+    def test_audio_cannot_overwrite_dialog_scratch_banks(self):
+        original_read = Path.read_bytes
+        def oversized_effects(path):
+            if path.name == 'SFX.BIN':
+                return bytes(8193)
+            return original_read(path)
+        with patch.object(Path, 'read_bytes', oversized_effects):
+            with self.assertRaisesRegex(ValueError, 'reserved dialog banks'):
+                audio_bundle()
 
     @unittest.skipUnless((ROOT / 'build/CX16-BATTLEBLOCKS.ZIP').is_file(), 'Run make dist first')
     def test_package_has_all_runtime_files_and_current_version(self):

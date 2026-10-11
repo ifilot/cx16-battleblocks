@@ -131,7 +131,7 @@ static void step_computer(struct GameState* player,
 }
 
 /**
- * @brief Run a match; return one when Escape requests the menu
+ * @brief Run a match; return one when the player confirms quitting
  */
 static uint8_t play_game(void) {
     uint8_t key, port;
@@ -141,7 +141,7 @@ static uint8_t play_game(void) {
         game_update_clears();
         if(!game_is_running()) break;
         key = cbm_k_getin();
-        if(key == KEYCODE_ESCAPE) {
+        if(key == KEYCODE_ESCAPE && menu_quit()) {
             sound_title();
             sound_menu_effect(SFX_MENU_BACK);
             return 1;
@@ -149,7 +149,11 @@ static uint8_t play_game(void) {
         game_parse_keyboard(key);
         for(port = 1; port <= 2; ++port) {
             key = input_controller(port);
-            if(key == KEYCODE_ESCAPE || key == KEYCODE_RETURN) return 1;
+            if(key == KEYCODE_RETURN) {
+                menu_settext(2, 29, "PAUSED           ");
+                if(input_pause()) return 1;
+                menu_settext(2, 29, game_mode == GAME_MODE_DEMO ? "DEMO MODE" : "ARROWS SPACE DROP");
+            }
             if(game_mode != GAME_MODE_DEMO &&
                (port == 1 || game_mode == GAME_MODE_LOCAL))
                 game_parse_input(port == 1 ? &gs_player1 : &gs_player2, key);

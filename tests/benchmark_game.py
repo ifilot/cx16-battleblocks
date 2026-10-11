@@ -5,12 +5,14 @@ The benchmark builds a temporary PRG with the same compiler options as the game.
 It includes AI preparation/search and measures rendering/movement separately.
 """
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
+ROM = Path(os.environ.get('ROM', ROOT.parent / 'emulator/rom.bin'))
 sys.path.insert(0, str(ROOT.parent / 'x16-emulator/api/python'))
 
 HARNESS = r'''
@@ -70,8 +72,7 @@ def build(directory, source_override=None):
                     '-o', str(binary), '-Ln', str(labels), '-t', 'cx16',
                     '-C', str(ROOT / 'src/rom.cfg'), '--asm-include-dir', str(ROOT / 'src'),
                     str(harness), *sources,
-                    str(ROOT / 'src/screen_asm.s'), str(ROOT / 'src/sound_asm.s'),
-                    str(ROOT / 'src/input_asm.s'), str(ROOT / 'src/transition.s'),
+                    *[str(source) for source in sorted((ROOT / 'src').glob('*.s'))],
                     str(ROOT / 'src/zsmkit.lib')], cwd=directory, check=True)
     return binary, symbols(labels)
 
@@ -107,15 +108,16 @@ class Bench:
         from x16agent import X16Agent
         self.labels = labels
         self.emu = X16Agent(ROOT.parent / 'x16-emulator/build/x16emu',
-                            ROOT.parent / 'emulator/rom.bin', fsroot=binary.parent,
+                            ROM, fsroot=binary.parent,
                             options=['-prg', str(binary), '-run'])
         self.emu.request('breakpoint', action='add', address=labels['_bench_begin'])
         result = self.emu.advance(240)
         assert result['reason'] == 'breakpoint', result
 
-    def run(self, field, piece_type, operation=0, next_type=0):
+    def run(self, field, piece_type, operation=0, next_type=0, coords=None):
         player = self.labels['_bench_player']
-        coords = bytes(v for x, y in START[piece_type] for v in (4 + x, 20 - y))
+        if coords is None:
+            coords = bytes(v for x, y in START[piece_type] for v in (4 + x, 20 - y))
         self.emu.write_memory(player + 9, coords)
         self.emu.write_memory(player + 49, bytes([piece_type, 0]))
         self.emu.write_memory(player + 33, bytes([next_type]) + bytes(6) + bytes([0]))

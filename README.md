@@ -1,7 +1,7 @@
 # Battle Blocks
 
 [![GitHub Actions](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml)
-[![Version](https://img.shields.io/badge/version-v0.2.0-blue)](VERSION)
+[![Version](https://img.shields.io/badge/version-v0.2.2-blue)](VERSION)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue)](LICENSE)
 
 **Build your stack. Break theirs.** Battle Blocks is a falling-block game for
@@ -19,6 +19,7 @@ from the white-and-blue Commander X16 look to the green terminals of Matrix.
 - [Five visual styles](#five-visual-styles)
 - [Controls](#controls)
 - [Play and build](#play-and-build)
+- [Changelog](CHANGELOG.md)
 - [License](#license)
 
 ## Gameplay
@@ -104,14 +105,17 @@ Phosphor-green lettering and sparse code columns surround the boards.
 | Hard drop | Space or 0 | Q |
 
 Use Up/Down and Enter/Space in the menus, or number keys to select an option.
-**T** switches styles in the main menu; **Escape** returns from a match to the
-menu.
+**T** switches styles in the main menu. During a match, **Escape** opens a
+quit-confirmation dialog with **No** selected. Use the arrow keys and
+Enter/Space to choose, **Y/N** for a direct answer, or **Escape** to cancel.
+The dialog freezes the match and restores the previous pause state on cancel.
 
 SNES controllers work alongside the keyboard: port 1 controls player 1 and
 port 2 controls player 2 in local battles. Use the D-pad to move and soft-drop,
-**Up or B/Y** to rotate, and **A/X** to hard-drop. **Start or Select** returns
-from a match to the menu. In menus, either controller can navigate with the
-D-pad, confirm with **A/X or Start**, and go back with **Select**.
+**Up or B/Y** to rotate, and **A/X** to hard-drop. **Start** pauses or resumes
+the match; **Select** is ignored during gameplay. In menus, either controller
+can navigate with the D-pad, confirm with **A/X or Start**, and go back with
+**Select**.
 `make run` and the browser demo enable both controller ports. When launching
 the desktop emulator yourself, include `-joy1 -joy2`.
 

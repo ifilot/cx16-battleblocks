@@ -15,6 +15,10 @@ def graphics_bundle():
         asset = (SRC / name).read_bytes()
         if not 0 < len(asset) <= 65535:
             raise ValueError(f'Invalid graphics size: {name}')
+        # Page alignment lets the resident index use 16-bit page offsets.
+        data.extend(bytes((-len(data)) % 256))
+        if len(data) >= 1 << 24:
+            raise ValueError('Graphics bundle exceeds 16 MB')
         entries.append((name.lower(), len(data), len(asset)))
         data.extend(asset)
     return data, entries
@@ -31,10 +35,14 @@ def audio_bundle():
     data = bytearray()
     for name, bank in sorted(assets, key=lambda item: item[1]):
         offset = (bank - 2) * 8192
+        asset = (SRC / name.upper()).read_bytes()
+        # Banks 3 and 4 hold the gameplay quit dialog's saved tilemaps.
+        if offset < 3 * 8192 and offset + len(asset) > 8192:
+            raise ValueError(f'Audio overlaps reserved dialog banks 3 and 4: {name}')
         if offset < len(data):
             raise ValueError(f'Overlapping audio banks: {name}')
         data.extend(bytes(offset - len(data)))
-        data.extend((SRC / name.upper()).read_bytes())
+        data.extend(asset)
     if len(data) > 62 * 8192:
         raise ValueError('Audio exceeds the standard 512 KB RAM')
     return data
@@ -48,8 +56,8 @@ def main():
     for i, (name, _, _) in enumerate(entries):
         symbol = name.upper().replace('-', '_').replace('.', '_')
         header += f'#define RES_{symbol} {i}\n'
-    header += '#ifdef RESOURCE_TABLE\nstatic const struct { unsigned long offset; unsigned int size; } graphics[] = {\n'
-    header += ''.join(f'    {{{offset}UL, {size}U}},\n' for name, offset, size in entries)
+    header += '#ifdef RESOURCE_TABLE\nstatic const struct { unsigned char page[2]; unsigned int size; } graphics[] = {\n'
+    header += ''.join(f'    {{{{{(offset >> 8) & 255}, {offset >> 16}}}, {size}U}},\n' for name, offset, size in entries)
     header += '};\n#endif\n'
     (SRC / 'resources_generated.h').write_text(header)
 

@@ -594,28 +594,27 @@ void game_update_clears(void) {
  * @param gamestate Player state to read or update
  */
 void game_update_shadow(struct GameState* gamestate) {
-    uint8_t i, height, x, relative_y, landing = 0, min = 23;
-    int8_t required;
+    uint8_t i, height, x, drop = PLAYFIELD_HEIGHT - 1;
     uint8_t* cell;
-    for(i = 0; i < 4; i++) {
-        if(gamestate->piece_position[i][1] < min) min = gamestate->piece_position[i][1];
-    }
+    /* Only obstacles below the current piece constrain its drop. Scanning
+     * from the top of a column incorrectly projects tucked pieces upward
+     * onto the roof, leaving that unrelated shadow behind when they lock. */
     for(i = 0; i < 4; i++) {
         x = gamestate->piece_position[i][0];
-        relative_y = gamestate->piece_position[i][1] - min;
-        cell = &gamestate->playfield[19][x];
-        height = 20;
-        while(height && *cell == 0xFF) {
+        height = gamestate->piece_position[i][1];
+        cell = &gamestate->playfield[height][x];
+        while(height) {
+            cell -= PLAYFIELD_WIDTH;
+            if(*cell != 0xFF) break;
             height--;
-            if(height) cell -= PLAYFIELD_WIDTH;
         }
-        required = height - relative_y;
-        if(required > (int8_t)landing) landing = required;
+        height = gamestate->piece_position[i][1] - height;
+        if(height < drop) drop = height;
     }
     memcpy(gamestate->piece_old_shadow, gamestate->piece_shadow, 8);
     for(i = 0; i < 4; i++) {
         gamestate->piece_shadow[i][0] = gamestate->piece_position[i][0];
-        gamestate->piece_shadow[i][1] = landing + gamestate->piece_position[i][1] - min;
+        gamestate->piece_shadow[i][1] = gamestate->piece_position[i][1] - drop;
     }
 }
 
@@ -658,13 +657,16 @@ void game_parse_input(struct GameState* player, uint8_t keycode) {
 }
 
 /**
- * @brief Read the low byte of the KERNAL 60 Hz clock
+ * @brief Read the 60 Hz match clock, excluding time spent paused
  *
  * @return Low clock byte; wraps every 256 ticks
  */
 uint8_t game_get_tick() {
     static uint8_t t;
+    extern uint8_t game_tick_offset;
     asm("jsr $FFDE");
+    asm("sec");
+    asm("sbc %v", game_tick_offset);
     asm("sta %v", t);
     return t;
 }

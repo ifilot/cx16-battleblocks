@@ -89,6 +89,8 @@ void menu_settext(uint8_t x, uint8_t y, const char* str) {
             VERA.data0 = 39;
         } else if(ch == '%') {
             VERA.data0 = 40;
+        } else if(ch == '>') {
+            VERA.data0 = TILE_SELECT_CURSOR;
         } else {
             VERA.data0 = TILE_NONE;
         }

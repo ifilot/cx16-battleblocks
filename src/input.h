@@ -24,7 +24,8 @@
 
 /*
  * SNES input shares the keyboard action codes. Directional holds repeat;
- * action buttons fire only on press, including across scene changes.
+ * action buttons fire only on press and debounce brief releases, including
+ * across scene changes.
  */
 
 /**
@@ -41,5 +42,10 @@ uint8_t __fastcall__ input_controller(uint8_t port);
  * @return Keyboard action code, or zero when no input is available
  */
 uint8_t input_key(void);
+
+/* Wait for Start to resume; return one if the player confirms quitting. */
+uint8_t input_pause(void);
+void input_freeze_begin(void);
+void input_freeze_tick(void);
 
 #endif

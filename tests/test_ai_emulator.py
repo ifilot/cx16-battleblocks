@@ -5,10 +5,10 @@ import shutil
 from tempfile import TemporaryDirectory
 import unittest
 
-from benchmark_game import Bench, START, boards, build, ROOT
+from benchmark_game import Bench, START, boards, build, ROOT, ROM
 
 AVAILABLE = ((ROOT.parent / 'x16-emulator/build/x16emu').is_file()
-             and (ROOT.parent / 'emulator/rom.bin').is_file()
+             and ROM.is_file()
              and (ROOT.parent / 'x16-emulator/api/python/x16agent.py').is_file()
              and shutil.which('cl65') is not None)
 INVALID = 0xFFFFFFFF
@@ -160,6 +160,25 @@ class AITests(unittest.TestCase):
                         row -= 1
                     expected = [v for x, y in shape for v in (x, row + 1 + y)]
                     self.assertEqual(result['shadow'], expected)
+
+    def test_shadow_beneath_overhang_matches_downward_collision_search(self):
+        for roof in (False, True):
+            for piece_type in range(7):
+                for rotation, shape in enumerate(self.shapes(piece_type)):
+                    with self.subTest(piece_type=piece_type, rotation=rotation, roof=roof):
+                        field = [[255] * 10 for _ in range(24)]
+                        if roof:
+                            field[8][3:7] = [2] * 4  # Roof above the current piece.
+                        field[0][4] = 2  # Uneven support below it.
+                        coords = [(3 + x, 3 + y) for x, y in shape]
+                        distance = 0
+                        while all(y - distance > 0 and field[y - distance - 1][x] == 255
+                                  for x, y in coords):
+                            distance += 1
+                        expected = [v for x, y in coords for v in (x, y - distance)]
+                        actual = self.bench.run(field, piece_type, operation=1,
+                                                coords=bytes(v for point in coords for v in point))
+                        self.assertEqual(actual['shadow'], expected)
 
     def test_random_boards_match_brute_force_search(self):
         rng = random.Random(0x6502)

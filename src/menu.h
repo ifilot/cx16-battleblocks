@@ -48,6 +48,9 @@ void menu_settext(uint8_t x, uint8_t y, const char* str);
  */
 void menu_centertext(uint8_t y, const char* str);
 
+/* Confirm leaving a match, preserving its display and time on cancellation. */
+uint8_t menu_quit(void);
+
 /**
  * @brief Run the main menu and return the selected game mode
  *

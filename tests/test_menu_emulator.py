@@ -65,7 +65,9 @@ class MenuTests(unittest.TestCase):
         self.assertEqual(self.read('_screen_style'), bytes([0]))
         self.assertEqual(self.emu.read_memory(0x18000, 2, space='vram'), bytes([1, 0]))
 
-    def press(self, key, settle=True):
+    def press(self, key, settle=True, confirm_quit=True):
+        # Existing scene tests use Escape to leave a match. Confirm its new
+        # dialog unless the test explicitly exercises the dialog itself.
         self.emu.request("key", key=key, down=True)
         self.emu.advance(3)
         self.emu.request("key", key=key, down=False)
@@ -78,6 +80,9 @@ class MenuTests(unittest.TestCase):
                     self.fail('Scene transition did not finish: ' + str(self.emu.request('status')))
                 self.emu.advance(5)
                 time.sleep(0.01)
+        if (confirm_quit and key == 'Escape' and
+                self.read('_game_quit_open') == bytes([1])):
+            self.press('Y')
 
     def read(self, name, offset=0, length=1):
         return self.emu.read_memory(self.symbols[name] + offset, length)
@@ -93,7 +98,7 @@ class MenuTests(unittest.TestCase):
             self.assertEqual(self.tile(16, option), 34 if option == row else 0)
 
     def assert_menu_text(self, row, text, x=None):
-        punctuation = {'.': 36, '/': 37, '-': 38, ':': 39, '%': 40, ' ': 0}
+        punctuation = {'.': 36, '/': 37, '-': 38, ':': 39, '%': 40, '>': 34, ' ': 0}
         if x is None: x = (40 - len(text)) // 2
         for index, char in enumerate(text.upper()):
             tile = punctuation.get(char)

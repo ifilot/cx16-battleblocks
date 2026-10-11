@@ -174,7 +174,7 @@ void game_parse_keyboard(uint8_t keycode);
 void game_parse_input(struct GameState* player, uint8_t keycode);
 
 /**
- * @brief Read the low byte of the KERNAL 60 Hz clock
+ * @brief Read the 60 Hz match clock, excluding time spent paused
  *
  * @return Low clock byte; wraps every 256 ticks
  */

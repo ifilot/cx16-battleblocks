@@ -60,7 +60,7 @@ const server = http.createServer((request,response) => {
     await page.click('#play');
     await page.waitForFunction(()=>typeof FS!=='undefined' && Module.calledRun && !document.querySelector('#canvas').hidden);
     const manifest=JSON.parse(fs.readFileSync(path.join(site,'game/manifest.json')));
-    assert.equal(manifest.resources.length,42);
+    assert.equal(manifest.resources.length,3);
     const loaded=await page.evaluate(()=>FS.readdir('/'));
     for(const file of manifest.resources) assert(loaded.includes(file),`${file} missing from emulator filesystem`);
     assert.deepEqual(await page.evaluate(()=>[canvas.width,canvas.height]),[640,480]);
@@ -126,6 +126,8 @@ assert ImageChops.difference(actual.crop(box1),expected.crop(box2)).getbbox() is
     await page.locator('#canvas').press('Enter',{delay:120});
     await page.waitForTimeout(800);
     await page.locator('#canvas').press('Escape',{delay:120});
+    await page.locator('#canvas').press('ArrowLeft',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
     await matches('foundry-return','docs/screenshots/foundry-menu.png',[0,0,640,368]);
     await page.locator('#canvas').press('t',{delay:120});
     await matches('synthwave-menu','docs/screenshots/synthwave-menu.png',[0,0,640,368]);
@@ -139,6 +141,8 @@ assert ImageChops.difference(actual.crop(box1),expected.crop(box2)).getbbox() is
     await banner('synthwave-player','synthwave','player',16);
     await banner('synthwave-computer','synthwave','computer',336);
     await page.locator('#canvas').press('Escape',{delay:120});
+    await page.locator('#canvas').press('ArrowLeft',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
     await page.locator('#canvas').press('t',{delay:120});
     await matches('matrix-menu','docs/screenshots/matrix-menu.png',[0,0,640,368]);
     await page.locator('#canvas').press('5',{delay:120});
@@ -150,6 +154,8 @@ assert ImageChops.difference(actual.crop(box1),expected.crop(box2)).getbbox() is
     await banner('matrix-player','matrix','player',16);
     await banner('matrix-computer','matrix','computer',336);
     await page.locator('#canvas').press('Escape',{delay:120});
+    await page.locator('#canvas').press('ArrowLeft',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
     await page.locator('#canvas').press('Escape',{delay:120});
     await matches('matrix-stays-in-menu','docs/screenshots/matrix-menu.png',[0,0,640,368]);
     await page.locator('#canvas').press('t',{delay:120});
@@ -164,6 +170,8 @@ assert ImageChops.difference(actual.crop(box1),expected.crop(box2)).getbbox() is
     await page.click('#audio');
     assert.equal(await page.locator('#audio').getAttribute('aria-pressed'),'false');
     await page.locator('#canvas').press('Escape',{delay:120});
+    await page.locator('#canvas').press('ArrowLeft',{delay:120});
+    await page.locator('#canvas').press('Enter',{delay:120});
     await page.waitForTimeout(600);
     await page.locator('#canvas').press('3',{delay:120});
     await pad(0,9); // Controller 1 Start launches the local battle.
@@ -183,7 +191,10 @@ for x,occupied in ((16,False),(336,True)):
     assert bool(pixels & colors)==occupied,(x,pixels & colors)
 `,path.join(captures,'controller-drop.png')],{encoding:'utf8'});
     assert.equal(controllerDrop.status,0,controllerDrop.stderr);
-    await pad(1,8); // Controller 2 Select returns to the menu.
+    await pad(1,8); // Select is ignored during gameplay.
+    await page.locator('#canvas').press('Escape',{delay:120});
+    await pad(1,14); // D-pad Left selects Yes.
+    await pad(1,1); // Confirm quitting with A.
     await matches('controller-return','docs/screenshots/menu.png',[0,0,640,128]);
     await page.locator('#canvas').press('t',{delay:120});
     await page.waitForTimeout(500);
@@ -243,6 +254,8 @@ assert np.all(blocks==blocks[:,0:1,:,0:1,:]),'Fullscreen interpolates pixels'
       await page.waitForTimeout(400);
     }
     await touchKey('Escape');
+    await touchKey('ArrowLeft');
+    await touchKey('Enter');
     await touchKey('1');
     await touchKey('Enter');
     await banner('touch-solo','cyberpunk','player',16);
@@ -250,6 +263,6 @@ assert np.all(blocks==blocks[:,0:1,:,0:1,:]),'Fullscreen interpolates pixels'
     await page.click('#restart');
     await page.waitForFunction(()=>!document.querySelector('#play').disabled && !document.querySelector('#cover').hidden);
     assert.deepEqual(errors,[]);assert.deepEqual(failed,[]);
-    console.log('PASS: WASM boot, 42 runtime files, two gamepads, five accessible style previews, exact splash/menu/banners, real AI demo, theme switching, audio, integer fullscreen pixels, mobile controls and restart under the Pages subpath.');
+    console.log('PASS: WASM boot, 3 runtime files, two gamepads, five accessible style previews, exact splash/menu/banners, real AI demo, theme switching, audio, integer fullscreen pixels, mobile controls and restart under the Pages subpath.');
   } finally {if(browser)await browser.close();server.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;server.close();});
