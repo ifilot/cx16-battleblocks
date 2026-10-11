@@ -36,9 +36,9 @@
 static void show_title(void) {
     uint8_t key;
     screen_init_title();
-    screen_load_tiles("titlepal.dat", 0x1FA00UL);
-    screen_load_tiles("title.dat", TILEBASE);
-    screen_load_tiles("titlemap.dat", TITLE_MAPBASE);
+    screen_load_tiles(RES_TITLEPAL_DAT, 0x1FA00UL);
+    screen_load_tiles(RES_TITLE_DAT, TILEBASE);
+    screen_load_tiles(RES_TITLEMAP_DAT, TITLE_MAPBASE);
     VERA.display.video = 0x11;
     sound_title();
     do {

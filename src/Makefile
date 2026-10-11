@@ -16,9 +16,13 @@ SOUND_FILES=TITLE.ZSM BATTLE.ZSM BATTLE2.ZSM BATTLE3.ZSM BATTLE4.ZSM VICTORY.ZSM
 make: BBLOCKS.PRG
 	@:
 
-BBLOCKS.PRG: *.c *.h *.s *.inc rom.cfg version_generated.h hud_generated.h banner_generated.h menu_title_generated.h MATRIX.DAT MATRIXP.DAT MATBG.DAT HUD-M.DAT NAME-M.DAT NAME-MX.DAT SYNTH.DAT SYNTHP.DAT HUD-S.DAT NAME-S.DAT NAME-SX.DAT MENU.DAT MENU-A.DAT ARCADEP.DAT CYBERP.DAT FOUNDRYP.DAT FOUNDRY.DAT FORGE.DAT ARCADE.DAT NAME-L.DAT NAME-F.DAT NAME-FX.DAT NAME-LX.DAT NAME-C.DAT NAME-CX.DAT HUD.DAT HUD-A.DAT HUD-F.DAT CYBER.DAT TILES.DAT TITLE.DAT TITLEMAP.DAT TITLEPAL.DAT FONTMAP.DAT $(SOUND_FILES) music.h sfx.h zsmkit.lib
+BBLOCKS.PRG: *.c *.h *.s *.inc rom.cfg resources_generated.h GRAPHICS.DAT AUDIO.BIN version_generated.h hud_generated.h banner_generated.h menu_title_generated.h MATRIX.DAT MATRIXP.DAT MATBG.DAT HUD-M.DAT NAME-M.DAT NAME-MX.DAT SYNTH.DAT SYNTHP.DAT HUD-S.DAT NAME-S.DAT NAME-SX.DAT MENU.DAT MENU-A.DAT ARCADEP.DAT CYBERP.DAT FOUNDRYP.DAT FOUNDRY.DAT FORGE.DAT ARCADE.DAT NAME-L.DAT NAME-F.DAT NAME-FX.DAT NAME-LX.DAT NAME-C.DAT NAME-CX.DAT HUD.DAT HUD-A.DAT HUD-F.DAT CYBER.DAT TILES.DAT TITLE.DAT TITLEMAP.DAT TITLEPAL.DAT FONTMAP.DAT $(SOUND_FILES) music.h sfx.h zsmkit.lib
 	@printf '  CC      BBLOCKS.PRG\n'
 	$(Q)$(CC) -O -o BBLOCKS.PRG -Ln BBLOCKS.sym -m BBLOCKS.map -t cx16 -C rom.cfg *.c *.s zsmkit.lib
+
+resources_generated.h GRAPHICS.DAT AUDIO.BIN &: MATRIX.DAT MATRIXP.DAT MATBG.DAT HUD-M.DAT NAME-M.DAT NAME-MX.DAT SYNTH.DAT SYNTHP.DAT HUD-S.DAT NAME-S.DAT NAME-SX.DAT MENU.DAT MENU-A.DAT ARCADEP.DAT CYBERP.DAT FOUNDRYP.DAT FOUNDRY.DAT FORGE.DAT ARCADE.DAT NAME-L.DAT NAME-F.DAT NAME-FX.DAT NAME-LX.DAT NAME-C.DAT NAME-CX.DAT HUD.DAT HUD-A.DAT HUD-F.DAT CYBER.DAT TILES.DAT TITLE.DAT TITLEMAP.DAT TITLEPAL.DAT FONTMAP.DAT $(SOUND_FILES) music.h sfx.h ../tools/bundle_resources.py ../tools/package_game.py
+	@printf '  BUNDLE  graphics and audio\n'
+	$(Q)python3 ../tools/bundle_resources.py
 
 run:
 	$(Q)$(MAKE) --no-print-directory -C .. run
@@ -69,7 +73,7 @@ FONTMAP.DAT: ../assets/scripts/fontmap.py ../assets/font/16x16_sm_ascii.png
 
 clean:
 	@printf '  CLEAN   generated game files\n'
-	$(Q)rm -f *.o *.DAT *.PRG *.ZSM SFX.BIN BBLOCKS.sym BBLOCKS.map version_generated.h
+	$(Q)rm -f *.o *.DAT *.PRG *.ZSM SFX.BIN AUDIO.BIN resources_generated.h BBLOCKS.sym BBLOCKS.map version_generated.h
 
 $(SOUND_FILES) music.h sfx.h: %: ../assets/sound/%
 	@printf '  COPY    %s\n' "$@"

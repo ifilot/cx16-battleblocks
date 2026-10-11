@@ -117,8 +117,8 @@ the desktop emulator yourself, include `-joy1 -joy2`.
 
 ## Play and build
 
-Run `BBLOCKS.PRG` on your Commander X16 or a compatible emulator, keeping the
-bundled graphics and audio files together. The browser demo also runs the
+Run `BBLOCKS.PRG` on your Commander X16 or a compatible emulator, keeping
+`GRAPHICS.DAT` and `AUDIO.BIN` alongside it. The browser demo also runs the
 actual game, with sound, fullscreen, and touch controls. Its website includes
 interactive previews of all five styles.
 
@@ -140,7 +140,11 @@ make run EMU=/path/to/x16emu ROM=/path/to/rom.bin
 ```
 
 `make` builds without launching. `make dist` creates the ready-to-copy package
-at `build/CX16-BATTLEBLOCKS.ZIP`. To record the gameplay GIFs, use `make demo`
+at `build/CX16-BATTLEBLOCKS.ZIP`, containing just `BBLOCKS.PRG`,
+`GRAPHICS.DAT`, `AUDIO.BIN`, and `VERSION.txt`. All five styles, music, and
+sound effects are included. Individual generated assets stay in the source
+build; graphics are streamed from one indexed bundle and audio is loaded from
+one bank-aligned image. To record the gameplay GIFs, use `make demo`
 with the AgentBridge emulator and Python client from the neighboring
 `x16-emulator` repository.
 

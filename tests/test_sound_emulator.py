@@ -56,12 +56,7 @@ class SoundTests(unittest.TestCase):
     def test_missing_audio_disables_playback_and_game_still_runs(self):
         with TemporaryDirectory(prefix='battleblocks-no-audio-') as path:
             path = Path(path)
-            for name in ('BBLOCKS.PRG', 'TILES.DAT', 'CYBER.DAT', 'HUD.DAT', 'HUD-A.DAT', 'HUD-F.DAT', 'MENU.DAT', 'MENU-A.DAT',
-                         'MATRIX.DAT', 'MATRIXP.DAT', 'MATBG.DAT', 'HUD-M.DAT', 'NAME-M.DAT', 'NAME-MX.DAT',
-                         'SYNTH.DAT', 'SYNTHP.DAT', 'HUD-S.DAT', 'NAME-S.DAT', 'NAME-SX.DAT',
-                         'ARCADEP.DAT', 'CYBERP.DAT', 'FOUNDRYP.DAT', 'FOUNDRY.DAT', 'FORGE.DAT', 'ARCADE.DAT',
-                         'TITLE.DAT', 'TITLEMAP.DAT', 'TITLEPAL.DAT', 'FONTMAP.DAT',
-                         'NAME-L.DAT', 'NAME-LX.DAT', 'NAME-C.DAT', 'NAME-CX.DAT', 'NAME-F.DAT', 'NAME-FX.DAT'):
+            for name in ('BBLOCKS.PRG', 'GRAPHICS.DAT'):
                 shutil.copyfile(ROOT / 'src' / name, path / name)
             with menu_tests.X16Agent(menu_tests.EMULATOR, menu_tests.ROM, fsroot=path,
                                     options=['-prg', str(path / 'BBLOCKS.PRG'), '-run']) as silent:

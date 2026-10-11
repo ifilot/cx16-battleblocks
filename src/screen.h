@@ -66,12 +66,14 @@ void screen_init_menu();
 void screen_init_game();
 
 /**
- * @brief Load a headerless asset directly into VRAM
+ * @brief Stream a bundled graphics resource directly into VRAM
  *
- * @param filename Asset filename on the current device
+ * @param resource Generated graphics resource ID
  * @param addr     Destination VRAM byte address
  */
-void screen_load_tiles(const char* filename, uint32_t addr);
+void screen_load_tiles(uint8_t resource, uint32_t addr);
+
+#include "resources_generated.h"
 
 /**
  * @brief Draw the tiled playfields for one or two players

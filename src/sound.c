@@ -106,17 +106,8 @@ static uint8_t load_banked(const char* name, uint8_t bank) {
  * @brief Load audio assets and install playback; leave sound_ready clear on failure
  */
 void sound_init(void) {
-    uint8_t i;
-    static const char* const files[] = {MUSIC_TITLE_FILE, MUSIC_BATTLE_FILE,
-        MUSIC_BATTLE2_FILE, MUSIC_BATTLE3_FILE, MUSIC_BATTLE4_FILE,
-        MUSIC_VICTORY_FILE, MUSIC_GAMEOVER_FILE};
-    static const uint8_t banks[] = {MUSIC_TITLE_BANK, MUSIC_BATTLE_BANK,
-        MUSIC_BATTLE2_BANK, MUSIC_BATTLE3_BANK, MUSIC_BATTLE4_BANK,
-        MUSIC_VICTORY_BANK, MUSIC_GAMEOVER_BANK};
-    /* Load once before installing the ISR. Gameplay never opens audio files. */
-    if(!load_banked(SFX_BANK_FILE, 2)) return;
-    for(i = 0; i < sizeof(banks); i++)
-        if(!load_banked(files[i], banks[i])) return;
+    /* One bank-aligned image preserves the generated track/effect addresses. */
+    if(!load_banked("audio.bin", 2)) return;
     sound_engine_init();
     sound_ready = 1;
     sound_apply_options();

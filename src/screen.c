@@ -76,18 +76,18 @@ static void screen_style_background(void) {
  */
 void screen_apply_style(void) {
     uint8_t video = VERA.display.video;
-    static const char* const palettes[] = {"arcadep.dat", "cyberp.dat", "foundryp.dat", "synthp.dat", "matrixp.dat"};
+    static const uint8_t palettes[] = {RES_ARCADEP_DAT, RES_CYBERP_DAT, RES_FOUNDRYP_DAT, RES_SYNTHP_DAT, RES_MATRIXP_DAT};
     screen_transition_begin();
     if(surface_style != screen_style) {
-        static const char* const surfaces[] = {"arcade.dat", "tiles.dat", "foundry.dat", "synth.dat", "matrix.dat"};
+        static const uint8_t surfaces[] = {RES_ARCADE_DAT, RES_TILES_DAT, RES_FOUNDRY_DAT, RES_SYNTH_DAT, RES_MATRIX_DAT};
         screen_load_tiles(palettes[screen_style], 0x1FA00UL);
         /* Foundry overrides the base frames; other styles supply a full atlas. */
         if(screen_style == SCREEN_STYLE_FOUNDRY)
-            screen_load_tiles("tiles.dat", TILEBASE);
+            screen_load_tiles(RES_TILES_DAT, TILEBASE);
         screen_load_tiles(surfaces[screen_style], TILEBASE);
         if(screen_style != SCREEN_STYLE_SYNTHWAVE)
-            screen_load_tiles(screen_style == SCREEN_STYLE_MATRIX ? "matbg.dat" :
-                              screen_style == SCREEN_STYLE_FOUNDRY ? "forge.dat" : "cyber.dat",
+            screen_load_tiles(screen_style == SCREEN_STYLE_MATRIX ? RES_MATBG_DAT :
+                              screen_style == SCREEN_STYLE_FOUNDRY ? RES_FORGE_DAT : RES_CYBER_DAT,
                               (uint32_t)TILE_CYBERPUNK_FIRST * 256);
         surface_style = screen_style;
         menu_title_ready = 0;
@@ -225,18 +225,6 @@ void screen_init_game() {
 }
 
 /**
- * @brief Load a headerless asset directly into VRAM
- *
- * @param filename Asset filename on the current device
- * @param addr     Destination VRAM byte address
- */
-void screen_load_tiles(const char* filename, uint32_t addr) {
-    cbm_k_setnam(filename);
-    cbm_k_setlfs(0, 8, 2);
-    cbm_k_load(2 + (addr >> 16), addr); // will load directly into VRAM
-}
-
-/**
  * @brief Draw the tiled playfields for one or two players
  *
  * @param players Number of visible players, one or two
@@ -262,7 +250,7 @@ void screen_create_scorebox(uint8_t players) {
     uint8_t row, col, limit = players == 1 ? 20 : 40;
     uint16_t tile, address;
     if(hud_tiles_style != screen_style) {
-        static const char* const atlases[] = {"hud-a.dat", "hud.dat", "hud-f.dat", "hud-s.dat", "hud-m.dat"};
+        static const uint8_t atlases[] = {RES_HUD_A_DAT, RES_HUD_DAT, RES_HUD_F_DAT, RES_HUD_S_DAT, RES_HUD_M_DAT};
         screen_load_tiles(atlases[screen_style], 130UL * 256);
         memset(hud_last_digits, 0, sizeof(hud_last_digits));
         memset(hud_value_ready, 0, sizeof(hud_value_ready));
@@ -366,8 +354,8 @@ void screen_draw_player_banner(uint8_t player, uint8_t computer, uint8_t number)
     uint16_t address;
     const uint8_t* tiles;
     if(banner_tiles_style != screen_style) {
-        static const char* const atlases[] = {"name-l.dat", "name-c.dat", "name-f.dat", "name-s.dat", "name-m.dat"};
-        static const char* const spills[] = {"name-lx.dat", "name-cx.dat", "name-fx.dat", "name-sx.dat", "name-mx.dat"};
+        static const uint8_t atlases[] = {RES_NAME_L_DAT, RES_NAME_C_DAT, RES_NAME_F_DAT, RES_NAME_S_DAT, RES_NAME_M_DAT};
+        static const uint8_t spills[] = {RES_NAME_LX_DAT, RES_NAME_CX_DAT, RES_NAME_FX_DAT, RES_NAME_SX_DAT, RES_NAME_MX_DAT};
         screen_load_tiles(atlases[screen_style],
                           (uint32_t)BANNER_TILE_FIRST * 256);
         screen_load_tiles(spills[screen_style],
@@ -587,7 +575,7 @@ void screen_draw_menu_title(void) {
     uint8_t row, column;
     uint8_t tile;
     if(!menu_title_ready) {
-        screen_load_tiles(screen_style == SCREEN_STYLE_COMMANDER_X16 ? "menu-a.dat" : "menu.dat",
+        screen_load_tiles(screen_style == SCREEN_STYLE_COMMANDER_X16 ? RES_MENU_A_DAT : RES_MENU_DAT,
                           (uint32_t)MENU_TITLE_FIRST * 256);
         /* The logo overwrites the spill tiles of cached gameplay banners. */
         banner_tiles_style = 255;
