@@ -1,4 +1,5 @@
 """Capture native README screenshots using the sibling X16 AgentBridge."""
+import os
 from pathlib import Path
 import sys
 import time
@@ -28,8 +29,8 @@ def settle(emu):
 def main():
     destination = ROOT / 'docs/screenshots'
     destination.mkdir(parents=True, exist_ok=True)
-    emu = X16Agent(ROOT.parent / 'x16-emulator/build/x16emu',
-                   ROOT.parent / 'emulator/rom.bin', fsroot=ROOT / 'src',
+    emu = X16Agent(os.environ.get('EMU', ROOT.parent / 'x16-emulator/build/x16emu'),
+                   os.environ.get('ROM', ROOT.parent / 'emulator/rom.bin'), fsroot=ROOT / 'src',
                    options=['-prg', str(ROOT / 'src/BBLOCKS.PRG'), '-run'])
     try:
         labels = {name.removeprefix('.'): int(address, 16)
@@ -66,6 +67,7 @@ def main():
             emu.advance(1500)
             assert emu.screenshot(destination / f'{theme}-battle.png')['captured']
             press(emu, 'Escape')
+            press(emu, 'Y')  # Confirm the quit dialog.
             if theme != 'matrix':
                 press(emu, 'T')
     finally:

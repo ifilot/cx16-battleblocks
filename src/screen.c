@@ -99,6 +99,7 @@ void screen_apply_style(void) {
 static uint8_t garbage_tiles_ready;
 static uint8_t hud_tiles_style = 255;
 static uint8_t banner_tiles_style = 255;
+static uint8_t banner_spill_style = 255;
 /* One digit row needs at most ten pixels; only the score has ten slots. */
 static uint8_t hud_pixels[10];
 static char hud_last_digits[2][75];
@@ -119,6 +120,7 @@ void screen_init_title() {
     garbage_tiles_ready = 0;
     hud_tiles_style = 255;
     banner_tiles_style = 255;
+    banner_spill_style = 255;
 
     screen_loading_begin();
 
@@ -341,6 +343,35 @@ void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value) {
 }
 
 /**
+ * @brief Load the theme's primary banner atlas, which the menu logo spares
+ */
+static void screen_load_banner_tiles(void) {
+    static const uint8_t atlases[] = {RES_NAME_L_DAT, RES_NAME_C_DAT, RES_NAME_F_DAT, RES_NAME_S_DAT, RES_NAME_M_DAT};
+    if(banner_tiles_style == screen_style) return;
+    screen_load_tiles(atlases[screen_style], (uint32_t)BANNER_TILE_FIRST * 256);
+    banner_tiles_style = screen_style;
+}
+
+/**
+ * @brief Draw the themed computer face from the banner atlas
+ *
+ * @param x Horizontal tile coordinate of the 2x2 face
+ * @param y Vertical tile coordinate of the 2x2 face
+ */
+void screen_draw_computer_face(uint8_t x, uint8_t y) {
+    uint8_t tile;
+    screen_load_banner_tiles();
+    for(tile = 0; tile < 4; tile++) {
+        if(!(tile & 1)) {
+            VERA.address = (uint16_t)MAPBASE1 + ((uint16_t)y++ << 7) + (x << 1);
+            VERA.address_hi = 0x11;
+        }
+        VERA.data0 = (BANNER_TILE_FIRST & 255) + tile;
+        VERA.data0 = BANNER_TILE_FIRST >> 8;
+    }
+}
+
+/**
  * @brief Draw the themed player or computer nameplate
  *
  * Banners reuse a theme atlas; all lettering and icons are already baked.
@@ -353,14 +384,12 @@ void screen_draw_player_banner(uint8_t player, uint8_t computer, uint8_t number)
     uint8_t row, col, variant = (computer ? 2 : 0) + (number == 2 ? 1 : 0);
     uint16_t address;
     const uint8_t* tiles;
-    if(banner_tiles_style != screen_style) {
-        static const uint8_t atlases[] = {RES_NAME_L_DAT, RES_NAME_C_DAT, RES_NAME_F_DAT, RES_NAME_S_DAT, RES_NAME_M_DAT};
+    screen_load_banner_tiles();
+    if(banner_spill_style != screen_style) {
         static const uint8_t spills[] = {RES_NAME_LX_DAT, RES_NAME_CX_DAT, RES_NAME_FX_DAT, RES_NAME_SX_DAT, RES_NAME_MX_DAT};
-        screen_load_tiles(atlases[screen_style],
-                          (uint32_t)BANNER_TILE_FIRST * 256);
         screen_load_tiles(spills[screen_style],
                           (uint32_t)BANNER_TILE_SPILL * 256);
-        banner_tiles_style = screen_style;
+        banner_spill_style = screen_style;
     }
     for(row = 0; row < 2; row++) {
         address = (uint16_t)MAPBASE1 + ((uint16_t)row << 7) + ((1 + player * 20) << 1);
@@ -578,7 +607,7 @@ void screen_draw_menu_title(void) {
         screen_load_tiles(screen_style == SCREEN_STYLE_COMMANDER_X16 ? RES_MENU_A_DAT : RES_MENU_DAT,
                           (uint32_t)MENU_TITLE_FIRST * 256);
         /* The logo overwrites the spill tiles of cached gameplay banners. */
-        banner_tiles_style = 255;
+        banner_spill_style = 255;
         menu_title_ready = 1;
     }
     for(row = 0; row < 2; row++) {

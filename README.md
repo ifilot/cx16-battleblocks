@@ -110,9 +110,10 @@ quit-confirmation dialog with **No** selected. Use the arrow keys and
 Enter/Space to choose, **Y/N** for a direct answer, or **Escape** to cancel.
 The dialog freezes the match and restores the previous pause state on cancel.
 
-Open **6 · Options** and select **Computer** to choose **Easy**, **Normal**, or
-**Hard** with Left/Right. Enter/Space cycles the setting. Easy is the default;
-the setting lasts for the session and applies to versus-computer and demo modes.
+The computer's difficulty is shown above the pieces in the main menu. Press
+Left/Right (or A/D) there to choose **Easy**, **Normal**, or **Hard**. Easy is
+the default; the setting lasts for the session and applies to versus-computer
+and demo modes.
 
 | Computer difficulty | Time between moves/rotations | Wait before hard drop |
 | --- | --- | --- |

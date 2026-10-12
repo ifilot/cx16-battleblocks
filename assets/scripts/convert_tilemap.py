@@ -105,6 +105,21 @@ def build_menu_punctuation(data):
         {(11 - (y - 2) * 8 // 9 + dx, y)
          for y in range(2, 12) for dx in range(2)},
     )
+    # A selection cursor at cap height, keeping the original bevel colors:
+    # outline, a lit upper edge, the face and a shaded lower edge.
+    pixels = bytearray(256)
+    for row in range(10):
+        width = 2 * min(row, 9 - row) + 2
+        for x in range(width):
+            if x == 0:
+                color = 85
+            elif row < 5:
+                color = 85 if x >= width - 2 else 73 if x >= width - 4 else 80
+            else:
+                color = 84 if x >= width - 2 else 80
+            pixels[(2 + row) * 16 + 3 + x] = color
+    data[34 * 256:35 * 256] = pixels
+
     for tile, points in zip((35, 36, 37, 38, 40), shapes):
         pixels = bytearray(256)
         for x, y in points:

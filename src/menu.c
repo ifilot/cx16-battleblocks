@@ -40,6 +40,8 @@
 #define MENU_LAST MENU_ABOUT
 #define MENU_TEXT_X 18
 #define MENU_CURSOR_X 16
+#define MENU_CPU_X 1
+#define MENU_CPU_Y 4
 static const char* const style_names[] = {"COMMANDER X16", "CYBERPUNK", "FOUNDRY", "SYNTHWAVE", "MATRIX"};
 
 /**
@@ -136,10 +138,35 @@ static void menu_description(uint8_t mode) {
 static void menu_piece(uint8_t x, uint8_t y, uint8_t type) {
     uint8_t i;
     for(i = 0; i < 4; i++) {
-        screen_set_tile_layer1(x + pieces_start_table[type][i][0] - 1,
+        /* Only the I piece starts at column zero; align its left edge. */
+        screen_set_tile_layer1(x + pieces_start_table[type][i][0] - (type != 0),
                               y + pieces_start_table[type][i][1] + 1,
                               TYPE_TO_TILEID(type));
     }
+}
+
+/**
+ * @brief Show the computer difficulty, with arrows toward the other levels
+ */
+static void menu_difficulty(void) {
+    static const char* const levels[] = {" EASY ", "NORMAL", " HARD "};
+    uint16_t address = (uint16_t)MAPBASE1 + ((MENU_CPU_Y + 1) << 7) + ((MENU_CPU_X + 3) << 1);
+    menu_settext(MENU_CPU_X + 4, MENU_CPU_Y + 1, levels[ai_difficulty]);
+    VERA.address = address;
+    VERA.address_hi = 0x11;
+    VERA.data0 = ai_difficulty ? TILE_SELECT_CURSOR : TILE_NONE;
+    VERA.data0 = 0x04; // A horizontally flipped cursor points left.
+    screen_set_tile_layer1(MENU_CPU_X + 10, MENU_CPU_Y + 1,
+                           ai_difficulty < 2 ? TILE_SELECT_CURSOR : TILE_NONE);
+}
+
+/**
+ * @brief Change the computer difficulty from the main menu
+ */
+static void menu_set_difficulty(uint8_t level) {
+    ai_difficulty = level;
+    sound_menu_effect(SFX_MENU_SELECT);
+    menu_difficulty();
 }
 
 /**
@@ -151,6 +178,7 @@ static void menu_toggle_style(void) {
     screen_transition_begin();
     screen_apply_style();
     screen_draw_menu_title();
+    screen_draw_computer_face(MENU_CPU_X, MENU_CPU_Y);
     screen_transition_end(0x31);
 }
 
@@ -174,9 +202,9 @@ static void menu_styles(void) {
         menu_settext(5, 6 + i * 4, descriptions[i]);
     }
     screen_set_tile_layer1(22, 5 + original * 4, TILE_STYLE_CHECK);
-    screen_create_lined_rectangle(27, 6, 11, 18);
+    screen_create_lined_rectangle(27, 6, 10, 18);
     menu_settext(29, 7, "PREVIEW");
-    for(i = 0; i < 7; i++) menu_piece(28 + (i % 2) * 6, 8 + (i / 2) * 4, i);
+    for(i = 0; i < 7; i++) menu_piece(28 + (i % 2) * 5, 8 + (i / 2) * 4, i);
     screen_set_tile_layer1(3, 5 + selected * 4, TILE_SELECT_CURSOR);
     menu_centertext(26, "UP DOWN PREVIEW  ENTER APPLY");
     menu_centertext(28, "1 2 3 4 5 CHOOSE  ESC CANCEL");
@@ -235,10 +263,9 @@ static void menu_about(void) {
 }
 
 /**
- * @brief Refresh audio flags, volume percentages and computer difficulty
+ * @brief Refresh audio flags and volume percentages
  */
 static void menu_options_values(void) {
-    static const char* const difficulties[] = {"EASY  ", "NORMAL", "HARD  "};
     static const char volumes[11][5] = {
         "0%  ", "10% ", "20% ", "30% ", "40% ", "50% ",
         "60% ", "70% ", "80% ", "90% ", "100%"
@@ -247,7 +274,6 @@ static void menu_options_values(void) {
     menu_settext(28, 8, volumes[sound_music_volume]);
     menu_settext(23, 12, sound_effects_enabled ? "ON " : "OFF");
     menu_settext(28, 12, volumes[sound_effects_volume]);
-    menu_settext(23, 16, difficulties[ai_difficulty]);
 }
 
 /**
@@ -259,11 +285,10 @@ static void menu_options(void) {
     uint8_t* volume;
     menu_clear();
     menu_centertext(2, "OPTIONS");
-    screen_create_lined_rectangle(3, 5, 34, 18);
+    screen_create_lined_rectangle(3, 5, 34, 14);
     menu_settext(7, 8, "MUSIC");
     menu_settext(7, 12, "SOUNDS");
-    menu_settext(7, 16, "COMPUTER");
-    menu_settext(7, 20, "BACK");
+    menu_settext(7, 16, "BACK");
     menu_options_values();
     screen_set_tile_layer1(5, 8, TILE_SELECT_CURSOR);
     menu_centertext(25, "UP DOWN SELECT  LEFT RIGHT CHANGE");
@@ -273,27 +298,25 @@ static void menu_options(void) {
         key = input_key();
         previous = selected;
         if(key == KEYCODE_ESCAPE ||
-           (selected == 3 && (key == KEYCODE_RETURN || key == KEYCODE_SPACE))) {
+           (selected == 2 && (key == KEYCODE_RETURN || key == KEYCODE_SPACE))) {
             sound_menu_effect(SFX_MENU_BACK);
             return;
         }
         if(key == KEYCODE_UP) {
-            selected = selected == 0 ? 3 : selected - 1;
+            selected = selected == 0 ? 2 : selected - 1;
         } else if(key == KEYCODE_DOWN) {
-            selected = selected == 3 ? 0 : selected + 1;
-        } else if(selected < 3) {
-            volume = selected == 2 ? &ai_difficulty :
-                (selected == 0 ? &sound_music_volume : &sound_effects_volume);
+            selected = selected == 2 ? 0 : selected + 1;
+        } else if(selected < 2) {
+            volume = selected == 0 ? &sound_music_volume : &sound_effects_volume;
             if(key == KEYCODE_RETURN || key == KEYCODE_SPACE) {
                 if(selected == 0) sound_music_enabled ^= 1;
-                else if(selected == 1) sound_effects_enabled ^= 1;
-                else ai_difficulty = ai_difficulty == 2 ? 0 : ai_difficulty + 1;
+                else sound_effects_enabled ^= 1;
             } else if(key == KEYCODE_LEFT) {
                 if(*volume) --*volume;
             } else if(key == KEYCODE_RIGHT) {
-                if(*volume < (selected == 2 ? 2 : 10)) ++*volume;
+                if(*volume < 10) ++*volume;
             } else continue;
-            if(selected < 2) sound_apply_options();
+            sound_apply_options();
             sound_menu_effect(SFX_MENU_SELECT);
             menu_options_values();
         }
@@ -316,14 +339,17 @@ static void menu_draw(uint8_t selected) {
     };
     menu_clear();
     screen_draw_menu_title();
+    screen_draw_computer_face(MENU_CPU_X, MENU_CPU_Y);
+    menu_settext(MENU_CPU_X + 3, MENU_CPU_Y, "COMPUTER");
+    menu_difficulty();
     menu_centertext(5, "MAIN MENU");
     screen_create_lined_rectangle(2, 7, 10, 16);
     screen_create_lined_rectangle(15, 7, 23, 16);
     for(i = 0; i < 7; ++i) menu_settext(MENU_TEXT_X, 8 + i * 2, labels[i]);
     /* Two columns, with two empty rows between successive pairs. */
-    for(i = 0; i < 7; ++i) menu_piece(3 + (i % 2) * 6, 8 + (i / 2) * 4, i);
-    menu_centertext(28, "UP DOWN SELECT  ENTER OPEN");
-    menu_centertext(29, "1 TO 7 SELECT  T QUICK STYLE");
+    for(i = 0; i < 7; ++i) menu_piece(3 + (i % 2) * 5, 8 + (i / 2) * 4, i);
+    menu_centertext(28, "UP DOWN OR 1 TO 7 SELECT  ENTER OPEN");
+    menu_centertext(29, "LEFT RIGHT COMPUTER  T QUICK STYLE");
     screen_set_tile_layer1(MENU_CURSOR_X, 8 + selected * 2, TILE_SELECT_CURSOR);
     menu_description(selected);
     screen_transition_end(0x31);
@@ -364,6 +390,16 @@ uint8_t menu_select(uint8_t initial_mode) {
             case '6':
             case '7':
                 selected = key - '1';
+                break;
+            case KEYCODE_LEFT:
+            case 'A':
+            case 'a':
+                if(ai_difficulty) menu_set_difficulty(ai_difficulty - 1);
+                break;
+            case KEYCODE_RIGHT:
+            case 'D':
+            case 'd':
+                if(ai_difficulty < 2) menu_set_difficulty(ai_difficulty + 1);
                 break;
             case KEYCODE_RETURN:
             case KEYCODE_SPACE:

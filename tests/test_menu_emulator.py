@@ -128,7 +128,7 @@ class MenuTests(unittest.TestCase):
         for theme in (0, 1):
             if theme:
                 self.press('T')
-            for entry, box in (('7', (1, 4, 38, 22)), ('6', (3, 5, 34, 18))):
+            for entry, box in (('7', (1, 4, 38, 22)), ('6', (3, 5, 34, 14))):
                 self.press(entry)
                 self.press('Return')
                 self.assert_background_box(theme, box)
@@ -292,8 +292,10 @@ class MenuTests(unittest.TestCase):
             for y in (10, 11, 14, 15, 18, 19):
                 for x in range(2, 12):
                     self.assertEqual(self.tile(x, y), 0)
+            # Keep a free column inside both panel edges and between columns.
             for y in range(7, 23):
-                self.assertEqual(self.tile(7, y), 0)
+                for x in (2, 7, 11):
+                    self.assertEqual(self.tile(x, y), 0)
             self.assert_background_box(theme, (2, 7, 10, 16), (15, 7, 23, 16))
 
     def test_grid_lines_are_visible_in_both_directions_in_all_styles(self):
@@ -392,8 +394,9 @@ class MenuTests(unittest.TestCase):
         self.press('6')
         self.press('Return')
         self.assert_menu_text(2, 'OPTIONS')
+        self.assert_menu_text(16, 'BACK', x=7)
         self.press('Up')
-        self.assertEqual(self.tile(5, 20), 34)
+        self.assertEqual(self.tile(5, 16), 34)
         self.press('Down')
         self.assertEqual(self.tile(5, 8), 34)
         for _ in range(12):
@@ -413,7 +416,6 @@ class MenuTests(unittest.TestCase):
         self.press('Space')
         self.assertEqual(self.read('_sound_effects_volume'), bytes([6]))
         self.assertEqual(self.read('_sound_effects_enabled'), bytes([0]))
-        self.press('Down')
         self.press('Down')
         self.press('Return')
         self.assert_cursor(18)

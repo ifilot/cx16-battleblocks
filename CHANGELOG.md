@@ -3,6 +3,21 @@
 Release history reconstructed from Git tags, commits, and the changes in the
 working tree. Versions are listed newest first.
 
+## Unreleased
+
+### Changed
+
+- Computer difficulty moved from Options to the main menu, shown above the
+  pieces beside the computer's face. Left/Right (or A/D, or the D-pad) change
+  it directly; Options now holds only music and sound settings.
+- The menu piece panels leave a free column inside both edges: the I piece no
+  longer touches the left frame, and the right column no longer touches the
+  right frame. The style preview panel is one column narrower to match.
+- The selection cursor is smaller, matching the menu font's capital height
+  instead of filling its whole tile.
+- The screenshot tool confirms the quit dialog when leaving each demo match and
+  accepts `EMU`/`ROM` overrides, matching the emulator tests.
+
 ## 0.2.3 — 2026-10-11
 
 ### Added

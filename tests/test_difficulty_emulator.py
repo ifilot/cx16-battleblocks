@@ -13,33 +13,64 @@ class DifficultyTests(unittest.TestCase):
     start = menu.MenuTests.start
     tile = menu.MenuTests.tile
     assert_menu_text = menu.MenuTests.assert_menu_text
+    assert_cursor = menu.MenuTests.assert_cursor
     install_pads = controller.ControllerTests.install_pads
     pad = controller.ControllerTests.pad
     tap = controller.ControllerTests.tap
 
-    def test_setting_bounds_cycle_controller_input_and_session_retention(self):
-        self.assertEqual(self.read('_ai_difficulty'), bytes([0]))
+    def attribute(self, x, y):
+        return self.emu.read_memory(0x1A000 + (y * 64 + x) * 2 + 1, space='vram')[0]
+
+    def assert_difficulty(self, level):
+        labels = (' EASY ', 'NORMAL', ' HARD ')
+        self.assertEqual(self.read('_ai_difficulty'), bytes([level]))
+        self.assert_menu_text(4, 'COMPUTER', x=4)
+        self.assert_menu_text(5, labels[level], x=5)
+        # The left arrow is the selection cursor, flipped horizontally.
+        self.assertEqual((self.tile(4, 5), self.attribute(4, 5)),
+                         (34, 4) if level else (0, 4))
+        self.assertEqual(self.tile(11, 5), 34 if level < 2 else 0)
+        # The 2x2 computer face leads the banner atlas at tile 316.
+        for index, (x, y) in enumerate(((1, 4), (2, 4), (1, 5), (2, 5))):
+            self.assertEqual((self.tile(x, y), self.attribute(x, y)), (60 + index, 1))
+
+    def test_main_menu_bounds_controller_input_and_session_retention(self):
+        self.assert_difficulty(0)
         music = self.read('_sound_music_volume')
         effects = self.read('_sound_effects_volume')
         self.install_pads()
-        self.press('6'); self.press('Return')
-        self.tap(2, low=4); self.tap(2, low=4)
-        self.assertEqual(self.tile(5, 16), 34)
-        self.assert_menu_text(16, 'EASY', x=23)
         self.tap(1, low=2)
-        self.assertEqual(self.read('_ai_difficulty'), bytes([0]))
-        for label in ('NORMAL', 'HARD', 'HARD'):
-            self.tap(1, low=1)
-            self.assert_menu_text(16, label, x=23)
-        self.tap(2, high=128)
-        self.assertEqual(self.read('_ai_difficulty'), bytes([0]))
-        self.press('Space'); self.press('Escape')
+        self.assert_difficulty(0)
+        for level in (1, 2, 2):
+            self.tap(2, low=1)
+            self.assert_difficulty(level)
+        self.press('A')
+        self.assert_difficulty(1)
+        # Changing difficulty keeps the selected menu entry.
+        self.assert_cursor(8)
         self.start(2); self.press('Escape')
+        self.assert_difficulty(1)
+        self.press('Left'); self.press('Right'); self.press('D')
+        self.assert_difficulty(2)
+        # Options now hold only audio settings.
         self.press('6'); self.press('Return')
-        self.assertEqual(self.read('_ai_difficulty'), bytes([1]))
-        self.assert_menu_text(16, 'NORMAL', x=23)
+        self.assert_menu_text(16, 'BACK', x=7)
+        self.press('Escape')
+        self.assert_difficulty(2)
         self.assertEqual(self.read('_sound_music_volume'), music)
         self.assertEqual(self.read('_sound_effects_volume'), effects)
+
+    def test_computer_face_follows_theme_and_survives_games(self):
+        atlases = ('NAME-L.DAT', 'NAME-C.DAT', 'NAME-F.DAT', 'NAME-S.DAT', 'NAME-M.DAT')
+        for style, atlas in enumerate(atlases):
+            if style:
+                self.press('T')
+            expected = (menu.ROOT / 'src' / atlas).read_bytes()[:4 * 256]
+            for _ in range(2):
+                self.assertEqual(self.read('_screen_style'), bytes([style]))
+                self.assertEqual(self.emu.read_memory(316 * 256, 4 * 256, space='vram'), expected)
+                self.assert_difficulty(0)
+                self.start(2); self.press('Escape')
 
     def test_drop_wait_and_movement_rate_for_each_difficulty(self):
         for difficulty, move_ticks, drop_ticks in ((0, 12, 60), (1, 6, 30), (2, 2, 2)):

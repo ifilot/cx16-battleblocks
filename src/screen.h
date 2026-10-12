@@ -106,6 +106,14 @@ void screen_draw_next_boxes(uint8_t players);
 void screen_draw_hud_number(uint8_t player, uint8_t field, uint32_t value);
 
 /**
+ * @brief Draw the themed computer face from the banner atlas
+ *
+ * @param x Horizontal tile coordinate of the 2x2 face
+ * @param y Vertical tile coordinate of the 2x2 face
+ */
+void screen_draw_computer_face(uint8_t x, uint8_t y);
+
+/**
  * @brief Draw the themed player or computer nameplate
  *
  * @param player   PLAYER1 or PLAYER2
