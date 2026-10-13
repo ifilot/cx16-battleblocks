@@ -1,7 +1,7 @@
 # Battle Blocks
 
 [![GitHub Actions](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml)
-[![Version](https://img.shields.io/badge/version-v0.2.3-blue)](VERSION)
+[![Version](https://img.shields.io/badge/version-v0.2.4-blue)](VERSION)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue)](LICENSE)
 
 **Build your stack. Break theirs.** Battle Blocks is a falling-block game for

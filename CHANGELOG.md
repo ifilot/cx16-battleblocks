@@ -3,7 +3,7 @@
 Release history reconstructed from Git tags, commits, and the changes in the
 working tree. Versions are listed newest first.
 
-## Unreleased
+## 0.2.4 — 2026-10-13
 
 ### Changed
 
