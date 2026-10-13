@@ -114,6 +114,22 @@ class DifficultyTests(unittest.TestCase):
         self.assertLess(counts[0], counts[1], counts)
         self.assertLess(counts[1], counts[2], counts)
 
+    def test_demo_pits_hard_left_against_selected_right(self):
+        def spawned(player):
+            data = self.read(player, 326, 14)
+            return sum(int.from_bytes(data[i:i+2], 'little') for i in range(0, 14, 2))
+        counts = {}
+        for difficulty in (0, 2):
+            self.write('_ai_difficulty', 0, bytes([difficulty]))
+            self.start(4)
+            self.emu.advance(600)
+            counts[difficulty] = (spawned('_gs_player1'), spawned('_gs_player2'))
+            self.press('Escape')
+        # The left computer keeps Hard pace; the right follows the setting.
+        self.assertGreaterEqual(counts[0][0], 2 * counts[0][1], counts)
+        self.assertLess(abs(counts[2][0] - counts[2][1]), 3, counts)
+        self.assertLess(counts[0][1], counts[2][1], counts)
+
 
 if __name__ == '__main__':
     unittest.main()

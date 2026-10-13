@@ -3,6 +3,14 @@
 Release history reconstructed from Git tags, commits, and the changes in the
 working tree. Versions are listed newest first.
 
+## Unreleased
+
+### Changed
+
+- The computer demo pits a Hard computer on the left against the selected
+  difficulty on the right, instead of two computers at the same level.
+- The gameplay GIFs show a 60-second Hard-versus-Easy battle.
+
 ## 0.2.4 — 2026-10-13
 
 ### Changed

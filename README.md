@@ -46,9 +46,10 @@ hold out against an opponent.
 | **Single player** | Keep clearing lines as the pace increases and chase a higher score. |
 | **Versus computer** | Outlast the computer while trading garbage attacks. |
 | **Two players** | Share a keyboard and battle a friend on two separate boards. |
-| **Computer demo** | Watch two computers build, clear, and attack each other. |
+| **Computer demo** | Watch a Hard computer take on one at your chosen difficulty. |
 
-See a battle in motion: [Commander X16 gameplay](img/cx16-battleblocks-gameplay.gif)
+See a Hard-versus-Easy battle in motion:
+[Commander X16 gameplay](img/cx16-battleblocks-gameplay.gif)
 or [Cyberpunk gameplay](img/cx16-battleblocks-cyberpunk-gameplay.gif).
 
 ## Five visual styles
@@ -112,8 +113,9 @@ The dialog freezes the match and restores the previous pause state on cancel.
 
 The computer's difficulty is shown above the pieces in the main menu. Press
 Left/Right (or A/D) there to choose **Easy**, **Normal**, or **Hard**. Easy is
-the default; the setting lasts for the session and applies to versus-computer
-and demo modes.
+the default; the setting lasts for the session and applies to the computer
+opponent. In the demo it sets the right computer, while the left one always
+plays Hard.
 
 | Computer difficulty | Time between moves/rotations | Wait before hard drop |
 | --- | --- | --- |

@@ -100,15 +100,15 @@ static void show_game(uint8_t mode) {
 /**
  * @brief Advance one AI search step and apply a rate-limited movement
  */
-static void step_computer(struct GameState* player,
-                          struct PlayFieldEvaluation* evaluation, uint8_t* last_tick) {
+static void step_computer(struct GameState* player, struct PlayFieldEvaluation* evaluation,
+                          uint8_t* last_tick, uint8_t difficulty) {
     uint8_t movement, old_x, old_rotation, search_done;
     static const uint8_t move_ticks[] = {12, 6, 2};
     static const uint8_t drop_ticks[] = {60, 30, 2};
     if(player->state != GAME_STATE_RUN) return;
     search_done = ai_calculate_next_score(player, evaluation);
     if((!search_done && evaluation->best_rot_id == 0xFF) ||
-       (uint8_t)(game_get_tick() - *last_tick) < move_ticks[ai_difficulty]) return;
+       (uint8_t)(game_get_tick() - *last_tick) < move_ticks[difficulty]) return;
     old_x = player->piece_position[0][0];
     old_rotation = player->piece_rot_idx;
     movement = ai_determine_movement(player, evaluation);
@@ -116,7 +116,7 @@ static void step_computer(struct GameState* player,
     if(!search_done && movement == AI_DROP) return;
     /* Give the opponent time to react after the computer finishes steering. */
     if(movement == AI_DROP &&
-       (uint8_t)(game_get_tick() - *last_tick) < drop_ticks[ai_difficulty]) return;
+       (uint8_t)(game_get_tick() - *last_tick) < drop_ticks[difficulty]) return;
     switch(movement) {
         case AI_MOVEMENT_LEFT: game_piece_move(player, -1); break;
         case AI_MOVEMENT_RIGHT: game_piece_move(player, 1); break;
@@ -163,11 +163,12 @@ static uint8_t play_game(void) {
                (port == 1 || game_mode == GAME_MODE_LOCAL))
                 game_parse_input(port == 1 ? &gs_player1 : &gs_player2, key);
         }
+        /* The demo pits a Hard computer against the selected difficulty. */
         if(game_mode == GAME_MODE_DEMO) {
-            step_computer(&gs_player1, &pfeval_player1, &cpu1_tick);
+            step_computer(&gs_player1, &pfeval_player1, &cpu1_tick, AI_HARD);
         }
         if(game_is_running() && (game_mode == GAME_MODE_COMPUTER || game_mode == GAME_MODE_DEMO)) {
-            step_computer(&gs_player2, &pfeval, &cpu2_tick);
+            step_computer(&gs_player2, &pfeval, &cpu2_tick, ai_difficulty);
         }
         if(game_is_running()) game_step();
     }

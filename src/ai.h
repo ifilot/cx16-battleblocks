@@ -29,6 +29,7 @@
 
 /* Session setting: Easy (0), Normal (1), Hard (2). */
 extern uint8_t ai_difficulty;
+#define AI_HARD 2
 
 /*
  * Incremental computer-player search. Rank current placements, then search

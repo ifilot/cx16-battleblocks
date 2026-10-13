@@ -12,6 +12,7 @@ from package_game import RUNTIME_FILES, runtime_source
 
 ROOT = Path(__file__).resolve().parents[1]
 FPS = 10
+DURATION = 60  # Seconds of GIF, menu included
 
 
 def encode(frames, output):
@@ -34,7 +35,7 @@ def encode(frames, output):
             delay = gif.info['duration']
             assert delay >= 100 and delay % 100 == 0, delay
             duration += delay
-        assert duration == len(frames) * 100, duration
+        assert duration == len(frames) * 100 == DURATION * 1000, duration
     print(f'  SAVED   {output} ({duration / 1000:.1f}s, 640x480, {FPS} fps)', flush=True)
 
 
@@ -76,6 +77,8 @@ def record(agent_class, emulator, rom, symbols, theme, output):
                 key('T')
                 capture(10)
             assert read('screen_style') == bytes([theme]), 'Theme selection failed'
+            # The left demo computer is always Hard; boot leaves the right one Easy.
+            assert read('ai_difficulty') == bytes([0]), 'Difficulty is not Easy'
             key('4')
             capture(10)
             key('Return')
@@ -89,16 +92,12 @@ def record(agent_class, emulator, rom, symbols, theme, output):
             else:
                 raise RuntimeError('Gameplay display did not finish loading')
 
-            print(f'  DEMO    {label}: computer-versus-computer gameplay', flush=True)
-            capture(30 * FPS)
+            print(f'  DEMO    {label}: Hard versus Easy computer gameplay', flush=True)
+            capture(DURATION * FPS - len(frames))
             for player in ('gs_player1', 'gs_player2'):
                 assert read(player, offset=51, size=240) != bytes([255]) * 240, \
                     f'{player} did not place any pieces'
             assert read('screen_style') == bytes([theme]), 'Gameplay theme changed'
-            key('Escape')
-            capture(15)
-            key('Escape')
-            capture(10)
 
     print(f'  GIF     {label}: encoding', flush=True)
     encode(frames, output)
