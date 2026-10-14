@@ -114,8 +114,9 @@ found:
     rts
 .endproc
 
-; Stop match time while polling both controllers. Select and movement are ignored.
-; Return one for confirmed quitting, zero for a fresh Start press on either port.
+; Stop match time while polling both controllers. Movement is ignored; Escape or
+; Select opens the quit dialog. Return one for confirmed quitting, zero for a
+; fresh Start press on either port.
 .proc _input_pause
     inc _game_paused
     ; Consume simultaneous presses on both ports before waiting for a new edge.
@@ -129,12 +130,7 @@ loop:
     jsr _input_freeze_tick
     jsr _cbm_k_getin
     cmp #$1b
-    bne controllers
-    jsr _menu_quit
-    cmp #0
-    bne exit
-    bra loop
-controllers:
+    beq quit
     lda #1
     jsr _input_controller
     pha
@@ -145,12 +141,19 @@ controllers:
     cmp #$0d
     beq resume
     cpy #$0d
+    beq resume
+    cmp #$1b
+    beq quit
+    cpy #$1b
     bne loop
+quit:
+    jsr _menu_quit
+    cmp #0
+    beq loop
+    lda #1
+    bra done
 resume:
     lda #0
-    bra done
-exit:
-    lda #1
 done:
     stz _game_paused
     ldx #0

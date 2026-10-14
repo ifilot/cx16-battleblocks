@@ -1,7 +1,7 @@
 # Battle Blocks
 
 [![GitHub Actions](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/ifilot/cx16-battleblocks/actions/workflows/build.yml)
-[![Version](https://img.shields.io/badge/version-v0.2.4-blue)](VERSION)
+[![Version](https://img.shields.io/badge/version-v0.2.5-blue)](VERSION)
 [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue)](LICENSE)
 
 **Build your stack. Break theirs.** Battle Blocks is a falling-block game for
@@ -112,25 +112,32 @@ Enter/Space to choose, **Y/N** for a direct answer, or **Escape** to cancel.
 The dialog freezes the match and restores the previous pause state on cancel.
 
 The computer's difficulty is shown above the pieces in the main menu. Press
-Left/Right (or A/D) there to choose **Easy**, **Normal**, or **Hard**. Easy is
-the default; the setting lasts for the session and applies to the computer
+Left/Right (or A/D) there to choose **Novice**, **Easy**, **Normal**, **Hard**,
+or **Expert**. Easy is the default; the setting lasts for the session and applies to the computer
 opponent. In the demo it sets the right computer, while the left one always
 plays Hard.
 
 | Computer difficulty | Time between moves/rotations | Wait before hard drop |
 | --- | --- | --- |
+| Novice | 400 ms | 2 seconds |
 | Easy | 200 ms | 1 second |
 | Normal | 100 ms | 500 ms |
 | Hard | 33 ms | 33 ms (the original speed) |
+| Expert | none | none |
 
-The hard-drop wait starts from the computer's last action. All levels use the
-same placement search and normal gravity; slower levels give you more time to
-react and limit how quickly the computer can place pieces and send attacks.
+The hard-drop wait starts from the computer's last action. Every level ranks
+all placements of the current piece under normal gravity, then checks how the
+next piece would fit. Slower levels give you more time to react and limit how
+quickly the computer can place pieces and send attacks. At Hard, the search
+itself sets the pace, so Expert checks the next piece for its two best
+placements instead of four: it plays about 30% faster with a little less
+foresight.
 
 SNES controllers work alongside the keyboard: port 1 controls player 1 and
 port 2 controls player 2 in local battles. Use the D-pad to move and soft-drop,
 **Up or B/Y** to rotate, and **A/X** to hard-drop. **Start** pauses or resumes
-the match; **Select** is ignored during gameplay. In menus, either controller
+the match, and **Select** on either controller opens the quit dialog, also
+while paused, just like **Escape**. In menus, either controller
 can navigate with the D-pad, confirm with **A/X or Start**, and go back with
 **Select**.
 `make run` and the browser demo enable both controller ports. When launching
@@ -184,6 +191,18 @@ Open <http://localhost:8000>. Serve the generated `build/site/` directory over
 HTTP so the emulator can load its files. The `site/` directory contains the
 website source; the build adds the screenshots and game assets. The first build
 downloads the official emulator r49 archive and caches it for later builds.
+
+An optional browser check boots the site in headless Chromium, plays through
+the menus with keyboard and gamepads, and compares screenshots with the approved
+artwork. It needs [Playwright](https://playwright.dev/) and is not part of the
+regular test suite. On GitHub, run the **Browser demo and GitHub Pages**
+workflow manually with **browser-check** enabled. Locally:
+
+```sh
+npm install --prefix build/browser-tools playwright@1.64.0
+build/browser-tools/node_modules/.bin/playwright install chromium
+NODE_PATH=build/browser-tools/node_modules node tests/check_site.cjs
+```
 
 ## License
 

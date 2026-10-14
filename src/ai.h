@@ -27,9 +27,13 @@
 #include "pieces.h"
 #include "gamestate.h"
 
-/* Session setting: Easy (0), Normal (1), Hard (2). */
+/* Session setting: Novice (0), Easy (1, default), Normal, Hard, Expert (4). */
 extern uint8_t ai_difficulty;
-#define AI_HARD 2
+#define AI_EASY 1
+#define AI_HARD 3
+#define AI_EXPERT 4
+/* Shortlisted placements previewed with the next piece: four, or two for Expert. */
+extern uint8_t ai_beam;
 
 /*
  * Incremental computer-player search. Rank current placements, then search

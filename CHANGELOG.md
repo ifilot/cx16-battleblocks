@@ -3,13 +3,28 @@
 Release history reconstructed from Git tags, commits, and the changes in the
 working tree. Versions are listed newest first.
 
-## Unreleased
+## 0.2.5 — 2026-10-14
+
+### Added
+
+- **Select** on either SNES controller opens the quit-confirmation menu during
+  a match, also while paused, just like Escape on the keyboard. Select inside
+  the dialog cancels it.
+- Two more computer difficulties: **Novice**, slower than Easy (400 ms between
+  moves, 2 seconds before a hard drop), and **Expert**, which never waits and
+  checks the next piece for only its two best placements, placing pieces about
+  30% faster than Hard. Easy remains the default.
 
 ### Changed
 
 - The computer demo pits a Hard computer on the left against the selected
   difficulty on the right, instead of two computers at the same level.
 - The gameplay GIFs show a 60-second Hard-versus-Easy battle.
+- Easy now shows a left arrow in the main menu, since Novice sits below it.
+  Screenshots are updated to match.
+- The browser check (`tests/check_site.cjs`) is optional: it skips when
+  Playwright is missing, and CI runs it only when the Pages workflow is
+  started manually with **browser-check** enabled.
 
 ## 0.2.4 — 2026-10-13
 

@@ -81,7 +81,6 @@ class ControllerTests(unittest.TestCase):
         self.assertEqual(self.read('_gs_player2',51,240),board)
         self.assertEqual(self.read('_gs_player1',51,240),bytes([255])*240)
         self.pad(2)
-        self.tap(1,low=32)
         self.assertEqual(self.read('_game_mode'), bytes([2]))
         self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x31)
 
@@ -106,8 +105,6 @@ class ControllerTests(unittest.TestCase):
                 menu.MenuTests.assert_menu_text(self, 29, 'PAUSED', x=2)
                 snapshots = [self.read(player, 0, 351) for player in ('_gs_player1', '_gs_player2')]
                 self.pad(1)  # Release before the next press.
-                self.pad(1, low=32, frames=10)  # Select remains ignored while paused.
-                self.pad(2, low=32, frames=10)
                 self.pad(1, low=1, high=128, frames=10)
                 self.pad(2, low=2, high=128, frames=310)  # Cross a full clock wrap.
                 for player, snapshot in zip(('_gs_player1', '_gs_player2'), snapshots):
@@ -120,16 +117,31 @@ class ControllerTests(unittest.TestCase):
                     self.assertEqual(self.read('_gs_player1', 9, 8), snapshots[0][9:17])
                 self.press('Escape')
 
-    def test_select_is_ignored_on_both_ports_during_play(self):
+    def test_select_opens_quit_dialog_on_both_ports(self):
         self.install_pads(); self.start(3)
         for port in (1, 2):
+            snapshot = [self.read(p, 0, 351) for p in ('_gs_player1', '_gs_player2')]
             self.tap(port, low=32)
+            self.assertEqual(self.read('_game_quit_open'), bytes([1]))
+            menu.MenuTests.assert_menu_text(self, 13, 'QUIT MATCH')
+            self.emu.advance(60)  # The match stays frozen behind the dialog.
+            self.assertEqual([self.read(p, 0, 351) for p in ('_gs_player1', '_gs_player2')], snapshot)
+            self.tap(3 - port, low=32)  # Select on either port cancels.
+            self.assertEqual(self.read('_game_quit_open'), bytes([0]))
             self.assertEqual(self.read('_game_paused'), bytes([0]))
             self.assertEqual(self.read('_game_mode'), bytes([2]))
-            self.assertEqual(self.emu.read_memory(0x9F29)[0] & 0x7F, 0x31)
+        # Select while paused opens the dialog; cancelling keeps the pause.
         self.tap(2, low=16)
         self.assertEqual(self.read('_game_paused'), bytes([1]))
-        self.press('Escape')
+        self.tap(1, low=32)
+        self.assertEqual(self.read('_game_quit_open'), bytes([1]))
+        self.pad(1, frames=10)  # A stable release re-arms the same port.
+        self.tap(1, low=32)
+        self.assertEqual(self.read('_game_quit_open'), bytes([0]))
+        self.assertEqual(self.read('_game_paused'), bytes([1]))
+        # Confirming from the paused dialog returns to the menu.
+        self.tap(2, low=32); self.tap(2, low=2); self.tap(2, high=128)
+        self.assertEqual(self.read('_game_paused'), bytes([0]))
         self.assertEqual(self.tile(16, 12), 34)
 
     def test_simultaneous_start_press_pauses_once(self):

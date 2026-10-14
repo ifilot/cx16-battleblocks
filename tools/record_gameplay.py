@@ -78,7 +78,7 @@ def record(agent_class, emulator, rom, symbols, theme, output):
                 capture(10)
             assert read('screen_style') == bytes([theme]), 'Theme selection failed'
             # The left demo computer is always Hard; boot leaves the right one Easy.
-            assert read('ai_difficulty') == bytes([0]), 'Difficulty is not Easy'
+            assert read('ai_difficulty') == bytes([1]), 'Difficulty is not Easy'
             key('4')
             capture(10)
             key('Return')

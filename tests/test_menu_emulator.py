@@ -750,7 +750,7 @@ class MenuTests(unittest.TestCase):
 
     def test_computer_keeps_playing_during_human_clear(self):
         # A drop inside this short wipe window requires the original fast pace.
-        self.write("_ai_difficulty", 0, bytes([2]))
+        self.write("_ai_difficulty", 0, bytes([3]))  # Hard
         self.start(2)
         self.prepare_clear("_gs_player1", range(4))
         self.press("Space")
@@ -926,7 +926,7 @@ class MenuTests(unittest.TestCase):
         self.assertLess(self.read("_gs_player2", 324)[0], 20)
 
     def test_blocked_ai_moves_eventually_lock_instead_of_stalling(self):
-        self.write("_ai_difficulty", 0, bytes([2]))
+        self.write("_ai_difficulty", 0, bytes([3]))  # Hard
         self.start(2)
         field = bytearray([255] * 240)
         field[10 * 10 + 4] = 2  # Blocks the planned left shift of an O.
@@ -1138,7 +1138,7 @@ class MenuTests(unittest.TestCase):
         self.assert_cursor(14)
 
     def test_ai_preview_tracks_bag_rollover(self):
-        self.write("_ai_difficulty", 0, bytes([2]))
+        self.write("_ai_difficulty", 0, bytes([3]))  # Hard
         self.start(2)
         self.write("_gs_player2", 33 + 6, bytes([4, 6]))  # Last current-bag piece, index 6.
         self.write("_gs_player2", 41, bytes([6, 5, 4, 3, 2, 1, 0, 0]))

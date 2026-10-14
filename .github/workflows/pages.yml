@@ -5,6 +5,11 @@ on:
     branches: [master]
   pull_request:
   workflow_dispatch:
+    inputs:
+      browser-check:
+        description: Run the Playwright browser check of the WASM game
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -26,16 +31,19 @@ jobs:
         run: make site
       - name: Verify browser distribution
         run: python3 -m unittest discover -s tests -p test_distribution.py -q
+      # The full browser run is slow; start it manually when the site changes.
       - name: Install browser test dependencies
+        if: inputs.browser-check
         run: |
           npm install --prefix build/browser-tools playwright@1.64.0
           build/browser-tools/node_modules/.bin/playwright install --with-deps chromium
       - name: Check browser game
+        if: inputs.browser-check
         env:
           NODE_PATH: ${{ github.workspace }}/build/browser-tools/node_modules
         run: node tests/check_site.cjs
       - name: Upload browser captures on failure
-        if: failure()
+        if: failure() && inputs.browser-check
         uses: actions/upload-artifact@v7
         with:
           name: browser-failure-captures

@@ -149,7 +149,7 @@ static void menu_piece(uint8_t x, uint8_t y, uint8_t type) {
  * @brief Show the computer difficulty, with arrows toward the other levels
  */
 static void menu_difficulty(void) {
-    static const char* const levels[] = {" EASY ", "NORMAL", " HARD "};
+    static const char levels[][7] = {"NOVICE", " EASY ", "NORMAL", " HARD ", "EXPERT"};
     uint16_t address = (uint16_t)MAPBASE1 + ((MENU_CPU_Y + 1) << 7) + ((MENU_CPU_X + 3) << 1);
     menu_settext(MENU_CPU_X + 4, MENU_CPU_Y + 1, levels[ai_difficulty]);
     VERA.address = address;
@@ -157,7 +157,7 @@ static void menu_difficulty(void) {
     VERA.data0 = ai_difficulty ? TILE_SELECT_CURSOR : TILE_NONE;
     VERA.data0 = 0x04; // A horizontally flipped cursor points left.
     screen_set_tile_layer1(MENU_CPU_X + 10, MENU_CPU_Y + 1,
-                           ai_difficulty < 2 ? TILE_SELECT_CURSOR : TILE_NONE);
+                           ai_difficulty < AI_EXPERT ? TILE_SELECT_CURSOR : TILE_NONE);
 }
 
 /**
@@ -399,7 +399,7 @@ uint8_t menu_select(uint8_t initial_mode) {
             case KEYCODE_RIGHT:
             case 'D':
             case 'd':
-                if(ai_difficulty < 2) menu_set_difficulty(ai_difficulty + 1);
+                if(ai_difficulty < AI_EXPERT) menu_set_difficulty(ai_difficulty + 1);
                 break;
             case KEYCODE_RETURN:
             case KEYCODE_SPACE:

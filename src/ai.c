@@ -19,7 +19,8 @@
 
 #include "ai.h"
 
-uint8_t ai_difficulty;
+uint8_t ai_difficulty = AI_EASY;
+uint8_t ai_beam = 4;
 
 /*
  * Incremental computer-player search. Rank current placements, then search
@@ -198,8 +199,8 @@ static void ai_shortlist(struct PlayFieldEvaluation* e, uint8_t candidate,
         j = e->candidates[i];
         if(score < e->score[j / 10][j % 10]) break;
     }
-    if(i == 4) return;
-    if(e->candidate_count < 4) e->candidate_count++;
+    if(i == ai_beam) return;
+    if(e->candidate_count < ai_beam) e->candidate_count++;
     for(j = e->candidate_count - 1; j > i; j--) e->candidates[j] = e->candidates[j - 1];
     e->candidates[i] = candidate;
 }

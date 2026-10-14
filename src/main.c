@@ -82,15 +82,10 @@ static void show_game(uint8_t mode) {
         menu_settext(22, 15, "SPACE DROPS");
         menu_settext(22, 17, "0 ALSO DROPS");
         menu_settext(22, 21, "ESC FOR MENU");
-    } else if(mode == GAME_MODE_DEMO) {
-        screen_draw_player_banner(PLAYER2, 1, 2);
-        menu_settext(22, 29, "ESC FOR MENU");
-    } else if(mode == GAME_MODE_COMPUTER) {
-        screen_draw_player_banner(PLAYER2, 1, 1);
-        menu_settext(22, 29, "ESC FOR MENU");
     } else {
-        screen_draw_player_banner(PLAYER2, 0, 2);
-        menu_settext(22, 29, "WASD Q DROP");
+        screen_draw_player_banner(PLAYER2, mode != GAME_MODE_LOCAL,
+                                  mode == GAME_MODE_COMPUTER ? 1 : 2);
+        menu_settext(22, 29, mode == GAME_MODE_LOCAL ? "WASD Q DROP" : "ESC FOR MENU");
     }
     screen_transition_end(0x31);
     gs_player1.gravity_tick = gs_player2.gravity_tick = game_get_tick();
@@ -102,21 +97,24 @@ static void show_game(uint8_t mode) {
  */
 static void step_computer(struct GameState* player, struct PlayFieldEvaluation* evaluation,
                           uint8_t* last_tick, uint8_t difficulty) {
-    uint8_t movement, old_x, old_rotation, search_done;
-    static const uint8_t move_ticks[] = {12, 6, 2};
-    static const uint8_t drop_ticks[] = {60, 30, 2};
+    uint8_t movement, old_x, old_rotation, search_done, elapsed;
+    /* Hard and Expert are limited by the search rather than these waits. */
+    static const uint8_t move_ticks[] = {24, 12, 6, 2, 0};
+    static const uint8_t drop_ticks[] = {120, 60, 30, 2, 0};
     if(player->state != GAME_STATE_RUN) return;
+    /* Expert previews only the best two placements, trading foresight for pace. */
+    ai_beam = difficulty == AI_EXPERT ? 2 : 4;
     search_done = ai_calculate_next_score(player, evaluation);
+    elapsed = game_get_tick() - *last_tick;
     if((!search_done && evaluation->best_rot_id == 0xFF) ||
-       (uint8_t)(game_get_tick() - *last_tick) < move_ticks[difficulty]) return;
+       elapsed < move_ticks[difficulty]) return;
     old_x = player->piece_position[0][0];
     old_rotation = player->piece_rot_idx;
     movement = ai_determine_movement(player, evaluation);
     // Steer during lookahead, but commit a hard drop after the full search.
     if(!search_done && movement == AI_DROP) return;
     /* Give the opponent time to react after the computer finishes steering. */
-    if(movement == AI_DROP &&
-       (uint8_t)(game_get_tick() - *last_tick) < drop_ticks[difficulty]) return;
+    if(movement == AI_DROP && elapsed < drop_ticks[difficulty]) return;
     switch(movement) {
         case AI_MOVEMENT_LEFT: game_piece_move(player, -1); break;
         case AI_MOVEMENT_RIGHT: game_piece_move(player, 1); break;
@@ -145,15 +143,18 @@ static uint8_t play_game(void) {
     while(game_is_running()) {
         game_update_clears();
         if(!game_is_running()) break;
-        key = cbm_k_getin();
-        if(key == KEYCODE_ESCAPE && menu_quit()) {
-            sound_title();
-            sound_menu_effect(SFX_MENU_BACK);
-            return 1;
-        }
-        game_parse_keyboard(key);
-        for(port = 1; port <= 2; ++port) {
-            key = input_controller(port);
+        /* Port zero is the keyboard; Select on a controller acts as Escape. */
+        for(port = 0; port <= 2; ++port) {
+            key = port ? input_controller(port) : cbm_k_getin();
+            if(key == KEYCODE_ESCAPE && menu_quit()) {
+                sound_title();
+                sound_menu_effect(SFX_MENU_BACK);
+                return 1;
+            }
+            if(!port) {
+                game_parse_keyboard(key);
+                continue;
+            }
             if(key == KEYCODE_RETURN) {
                 menu_settext(2, 29, "PAUSED           ");
                 if(input_pause()) return 1;
@@ -176,10 +177,17 @@ static uint8_t play_game(void) {
 }
 
 /**
+ * @brief Read one key; return one for Enter, Space or Escape
+ */
+static uint8_t result_dismissed(void) {
+    uint8_t key = input_key();
+    return key == KEYCODE_RETURN || key == KEYCODE_SPACE || key == KEYCODE_ESCAPE;
+}
+
+/**
  * @brief Advance the loss animation and wait for a return to the menu
  */
 static void show_result(void) {
-    uint8_t key;
     sound_result(game_mode != GAME_MODE_SINGLE && game_mode != GAME_MODE_DEMO &&
         (gs_player1.state != GAME_STATE_LOST ||
          (game_mode == GAME_MODE_LOCAL && gs_player2.state != GAME_STATE_LOST)));
@@ -187,8 +195,7 @@ static void show_result(void) {
     while(gs_player1.lose_row < 20 || gs_player2.lose_row < 20) {
         game_update_blockfill(&gs_player1);
         game_update_blockfill(&gs_player2);
-        key = input_key();
-        if(key == KEYCODE_RETURN || key == KEYCODE_SPACE || key == KEYCODE_ESCAPE) return;
+        if(result_dismissed()) return;
     }
     screen_create_lined_rectangle(10, 13, 20, 6);
     menu_centertext(14, "GAME OVER");
@@ -201,9 +208,7 @@ static void show_result(void) {
         }
     }
     menu_centertext(18, "ENTER FOR MENU");
-    do {
-        key = input_key();
-    } while(key != KEYCODE_RETURN && key != KEYCODE_SPACE && key != KEYCODE_ESCAPE);
+    while(!result_dismissed());
 }
 
 /**

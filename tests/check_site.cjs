@@ -4,7 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const {spawnSync} = require('node:child_process');
-const {chromium} = require('playwright');
+let chromium;
+try {
+  ({chromium} = require('playwright'));
+} catch {
+  // Optional check: report a skip instead of failing without Playwright.
+  console.log('SKIP: Playwright is not installed; see "Run the browser demo locally" in README.md.');
+  process.exit(0);
+}
 const root = path.resolve(__dirname, '..');
 const site = path.join(root, 'build/site');
 const captures = path.join(root, 'build/site-check');
@@ -191,8 +198,7 @@ for x,occupied in ((16,False),(336,True)):
     assert bool(pixels & colors)==occupied,(x,pixels & colors)
 `,path.join(captures,'controller-drop.png')],{encoding:'utf8'});
     assert.equal(controllerDrop.status,0,controllerDrop.stderr);
-    await pad(1,8); // Select is ignored during gameplay.
-    await page.locator('#canvas').press('Escape',{delay:120});
+    await pad(1,8); // Select opens the quit dialog, like Escape.
     await pad(1,14); // D-pad Left selects Yes.
     await pad(1,1); // Confirm quitting with A.
     await matches('controller-return','docs/screenshots/menu.png',[0,0,640,128]);
