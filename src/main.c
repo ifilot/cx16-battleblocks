@@ -224,8 +224,15 @@ void main(void) {
     while(1) {
         show_menu();
         selected = menu_select(mode);
+        if(selected == MENU_EXIT) break;
         mode = selected;
         show_game(mode);
         if(!play_game()) show_result();
     }
+    sound_shutdown();
+    /*
+     * Restore the KERNAL text screen, font and palette, then return to BASIC.
+     * A cold start through enter_basic would run AUTOBOOT.X16 again.
+     */
+    asm("jsr $FF81");
 }

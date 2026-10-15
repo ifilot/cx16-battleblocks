@@ -5,7 +5,7 @@
 .endscope
 
 .export _sound_engine_init, _sound_play_music, _sound_play_effect
-.export _sound_stop_effects, _sfx_prio
+.export _sound_stop_effects, _sfx_prio, _sound_shutdown
 .export _sound_load_file
 .export _sound_music_atten, _sound_effects_atten
 
@@ -104,6 +104,22 @@ failed:
     jsr zsmkit::zsm_stop
     ldx #2
     jsr zsmkit::zsm_stop
+    plp
+    rts
+.endproc
+
+; Stop every priority and give the IRQ vector back to the KERNAL before exit.
+.proc _sound_shutdown
+    php
+    sei
+    ldx #3
+stop:
+    phx
+    jsr zsmkit::zsm_stop
+    plx
+    dex
+    bpl stop
+    jsr zsmkit::zsmkit_clearisr
     plp
     rts
 .endproc

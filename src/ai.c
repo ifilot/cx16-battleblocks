@@ -27,8 +27,11 @@ uint8_t ai_beam = 4;
  * the next piece for the four best candidates using board snapshots.
  */
 
+/* Golden RAM is not zeroed at startup; ai_prepare sets every field it reads. */
+#pragma bss-name (push, "GOLDENBSS")
 struct PlayFieldEvaluation pfeval;
 struct PlayFieldEvaluation pfeval_player1;
+#pragma bss-name (pop)
 
 static const uint16_t column_bits[10] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512};
 

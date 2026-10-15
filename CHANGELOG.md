@@ -14,6 +14,11 @@ working tree. Versions are listed newest first.
   moves, 2 seconds before a hard drop), and **Expert**, which never waits and
   checks the next piece for only its two best placements, placing pieces about
   30% faster than Hard. Easy remains the default.
+- **8 Exit** in the main menu returns to the BASIC prompt after a
+  confirmation. It stops all audio, restores the KERNAL's interrupt handler
+  and text screen, and returns from `main()`. A BASIC cold start is avoided
+  because it loads `AUTOBOOT.X16` from the current directory again, also when
+  the game was started with `BOOT` from a subfolder.
 
 ### Changed
 
@@ -21,7 +26,11 @@ working tree. Versions are listed newest first.
   difficulty on the right, instead of two computers at the same level.
 - The gameplay GIFs show a 60-second Hard-versus-Easy battle.
 - Easy now shows a left arrow in the main menu, since Novice sits below it.
-  Screenshots are updated to match.
+  Both main-menu panels are one row taller to fit the Exit entry, and the
+  description below them moved down one row. Screenshots are updated to match.
+- The computer's search state lives in golden RAM (`$0400`-`$06FF`), freeing
+  about 730 bytes of main memory. The controller tests' joystick stub moved
+  to `$0700`-`$07FF`, which the game leaves free.
 - The browser check (`tests/check_site.cjs`) is optional: it skips when
   Playwright is missing, and CI runs it only when the Pages workflow is
   started manually with **browser-check** enabled.

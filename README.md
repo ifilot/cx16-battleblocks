@@ -111,6 +111,10 @@ quit-confirmation dialog with **No** selected. Use the arrow keys and
 Enter/Space to choose, **Y/N** for a direct answer, or **Escape** to cancel.
 The dialog freezes the match and restores the previous pause state on cancel.
 
+**8 Exit** in the main menu asks for the same confirmation and then returns to
+the BASIC `READY.` prompt with the normal text screen, colors, and font. To
+play again, `LOAD` the game; a second `RUN` is not supported.
+
 The computer's difficulty is shown above the pieces in the main menu. Press
 Left/Right (or A/D) there to choose **Novice**, **Easy**, **Normal**, **Hard**,
 or **Expert**. Easy is the default; the setting lasts for the session and applies to the computer

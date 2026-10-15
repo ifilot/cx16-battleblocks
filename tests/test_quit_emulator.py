@@ -10,6 +10,7 @@ class QuitTests(unittest.TestCase):
     read = menu.MenuTests.read
     start = menu.MenuTests.start
     tile = menu.MenuTests.tile
+    assert_cursor = menu.MenuTests.assert_cursor
     assert_menu_text = menu.MenuTests.assert_menu_text
     install_pads = controller.ControllerTests.install_pads
     pad = controller.ControllerTests.pad
@@ -81,6 +82,34 @@ class QuitTests(unittest.TestCase):
         self.press('Escape'); self.press('Y')
         self.assertEqual(self.read('_game_paused'), bytes([0]))
         self.assertEqual(self.tile(16, 12), 34)
+
+    def test_exit_item_confirms_then_returns_to_a_clean_basic_prompt(self):
+        self.press('8')
+        self.assert_cursor(22)
+        self.assert_menu_text(25, 'RETURN TO THE BASIC PROMPT')
+        self.assert_menu_text(28, 'UP DOWN OR 1 TO 8 SELECT  ENTER OPEN')
+        maps = self.maps()
+        for cancel in ('Escape', 'N', 'Return'):  # Return confirms the default No.
+            self.press('Return')
+            self.assertEqual(self.read('_game_quit_open'), bytes([1]))
+            self.assert_menu_text(13, 'EXIT TO BASIC')
+            self.assert_menu_text(16, '  YES   > NO')
+            self.press(cancel)
+            self.assertEqual(self.read('_game_quit_open'), bytes([0]))
+            self.assertEqual(self.maps(), maps)
+        self.press('Return'); self.press('Left'); self.press('Return')
+        self.emu.advance(60)
+        # The KERNAL owns the IRQ again and every PSG voice is silent.
+        self.assertGreaterEqual(int.from_bytes(self.emu.read_memory(0x314, 2), 'little'), 0xC000)
+        psg = self.emu.read_memory(0x1F9C0, 64, space='vram')
+        self.assertEqual([psg[i] & 0x3F for i in range(2, 64, 4)], [0] * 16)
+        # Default text palette: black, white, red, cyan.
+        self.assertEqual(self.emu.read_memory(0x1FA00, 8, space='vram'), bytes.fromhex('0000ff0f0008fe0a'))
+        def row(y):
+            cells = self.emu.read_memory(0x1B000 + y * 256, 12, space='vram')
+            return bytes(cells[::2])
+        ready = bytes([0x12, 0x05, 0x01, 0x04, 0x19, 0x2E])  # READY. in screen codes
+        self.assertEqual(row(1)[:6], ready)
 
 
 if __name__ == '__main__':

@@ -99,6 +99,11 @@ void sound_player_motion(uint8_t player, uint16_t p1, uint16_t p2);
  */
 void sound_clear(uint8_t player, uint8_t count);
 
+/**
+ * @brief Stop all music and effects and restore the KERNAL's IRQ handler
+ */
+void sound_shutdown(void);
+
 #define PLAYER_SOUND(gs, name) sound_player_effect((gs)->player, name##_P1, name##_P2)
 #define MOTION_SOUND(gs, name) sound_player_motion((gs)->player, name##_P1, name##_P2)
 

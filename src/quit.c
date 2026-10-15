@@ -7,12 +7,16 @@ extern void __fastcall__ screen_modal_copy(uint8_t restore);
 uint8_t game_quit_open;
 
 uint8_t menu_quit(void) {
+    return menu_confirm("QUIT MATCH");
+}
+
+uint8_t __fastcall__ menu_confirm(const char* title) {
     uint8_t key, quit = 0;
     input_freeze_begin();
     game_quit_open = 1;
     screen_modal_copy(0);
     screen_create_lined_rectangle(7, 11, 26, 9);
-    menu_centertext(13, "QUIT MATCH");
+    menu_centertext(13, title);
     menu_centertext(18, "ARROWS ENTER  ESC CANCEL");
     while(1) {
         /* Reserve both cursor slots so neither label moves on selection. */

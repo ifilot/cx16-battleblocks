@@ -16,18 +16,19 @@ class ControllerTests(unittest.TestCase):
 
     def install_pads(self):
         # Raw bytes returned in A/X/Y for each physical port.
-        self.emu.write_memory(0x600, bytes([255,255,255,255,0,0]))
+        self.emu.write_memory(0x7F0, bytes([255,255,255,255,0,0]))
         # index = port - 1; preserve A while loading X and presence in Y.
-        stub = bytes.fromhex('3a aa bd0006 48 bd0406 a8 bd0206 aa 68 60')
-        self.emu.write_memory(0x500, stub)
+        # The stub lives in the top of golden RAM, which the game leaves free.
+        stub = bytes.fromhex('3a aa bdf007 48 bdf407 a8 bdf207 aa 68 60')
+        self.emu.write_memory(0x700, stub)
         address = self.symbols['_input_controller'] + 3
         self.assertEqual(self.emu.read_memory(address,3), bytes.fromhex('2056ff'))
-        self.emu.write_memory(address, bytes.fromhex('200005'))
+        self.emu.write_memory(address, bytes.fromhex('200007'))
 
     def pad(self, port, low=0, high=0, frames=3, present=True, settle=True):
-        self.emu.write_memory(0x600+port-1, bytes([255 ^ low]))
-        self.emu.write_memory(0x602+port-1, bytes([255 ^ high]))
-        self.emu.write_memory(0x604+port-1, bytes([0 if present else 255]))
+        self.emu.write_memory(0x7F0+port-1, bytes([255 ^ low]))
+        self.emu.write_memory(0x7F2+port-1, bytes([255 ^ high]))
+        self.emu.write_memory(0x7F4+port-1, bytes([0 if present else 255]))
         self.emu.advance(frames)
         if not settle: return
         deadline = menu.time.monotonic()+30
@@ -43,8 +44,8 @@ class ControllerTests(unittest.TestCase):
     def test_both_controllers_navigate_apply_and_cancel_menus(self):
         self.install_pads()
         self.assertEqual(self.tile(16,8),34)
-        self.tap(2,low=8)  # Up wraps from solo to About.
-        self.assertEqual(self.tile(16,20),34)
+        self.tap(2,low=8)  # Up wraps from solo to Exit.
+        self.assertEqual(self.tile(16,22),34)
         self.tap(2,low=4)
         self.assertEqual(self.tile(16,8),34)
         self.tap(1,low=4)
@@ -146,7 +147,7 @@ class ControllerTests(unittest.TestCase):
 
     def test_simultaneous_start_press_pauses_once(self):
         self.install_pads(); self.start(3)
-        self.emu.write_memory(0x600, bytes([255 ^ 16, 255 ^ 16]))
+        self.emu.write_memory(0x7F0, bytes([255 ^ 16, 255 ^ 16]))
         self.emu.advance(30)
         self.assertEqual(self.read('_game_paused'), bytes([1]))
         self.pad(1); self.pad(2)

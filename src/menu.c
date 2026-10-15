@@ -37,7 +37,7 @@
 #define MENU_STYLE 4
 #define MENU_OPTIONS 5
 #define MENU_ABOUT 6
-#define MENU_LAST MENU_ABOUT
+#define MENU_LAST MENU_EXIT
 #define MENU_TEXT_X 18
 #define MENU_CURSOR_X 16
 #define MENU_CPU_X 1
@@ -123,13 +123,13 @@ static void menu_description(uint8_t mode) {
         "CLEAR LINES  BEAT YOUR SCORE", "BATTLE THE COMPUTER",
         "LOCAL TWO PLAYER BATTLE", "COMPUTER VERSUS COMPUTER",
         "PREVIEW FIVE VISUAL STYLES", "MUSIC AND SOUND EFFECTS",
-        "VERSION  CREDITS  SYSTEM DETAILS"
+        "VERSION  CREDITS  SYSTEM DETAILS", "RETURN TO THE BASIC PROMPT"
     };
-    menu_settext(2, 24, "                                    ");
     menu_settext(2, 25, "                                    ");
-    menu_centertext(24, descriptions[mode]);
-    if(mode < GAME_MODE_DEMO) menu_centertext(25, "P1 ARROWS SPACE  P2 WASD Q");
-    else if(mode == MENU_STYLE) menu_centertext(25, "ENTER TO CHANGE STYLE");
+    menu_settext(2, 26, "                                    ");
+    menu_centertext(25, descriptions[mode]);
+    if(mode < GAME_MODE_DEMO) menu_centertext(26, "P1 ARROWS SPACE  P2 WASD Q");
+    else if(mode == MENU_STYLE) menu_centertext(26, "ENTER TO CHANGE STYLE");
 }
 
 /**
@@ -335,7 +335,7 @@ static void menu_draw(uint8_t selected) {
     uint8_t i;
     static const char* const labels[] = {
         "1 SINGLE PLAYER", "2 VERSUS COMPUTER", "3 TWO PLAYERS",
-        "4 COMPUTER DEMO", "5 SELECT STYLE", "6 OPTIONS", "7 ABOUT"
+        "4 COMPUTER DEMO", "5 SELECT STYLE", "6 OPTIONS", "7 ABOUT", "8 EXIT"
     };
     menu_clear();
     screen_draw_menu_title();
@@ -343,12 +343,12 @@ static void menu_draw(uint8_t selected) {
     menu_settext(MENU_CPU_X + 3, MENU_CPU_Y, "COMPUTER");
     menu_difficulty();
     menu_centertext(5, "MAIN MENU");
-    screen_create_lined_rectangle(2, 7, 10, 16);
-    screen_create_lined_rectangle(15, 7, 23, 16);
-    for(i = 0; i < 7; ++i) menu_settext(MENU_TEXT_X, 8 + i * 2, labels[i]);
+    screen_create_lined_rectangle(2, 7, 10, 17);
+    screen_create_lined_rectangle(15, 7, 23, 17);
+    for(i = 0; i <= MENU_LAST; ++i) menu_settext(MENU_TEXT_X, 8 + i * 2, labels[i]);
     /* Two columns, with two empty rows between successive pairs. */
     for(i = 0; i < 7; ++i) menu_piece(3 + (i % 2) * 5, 8 + (i / 2) * 4, i);
-    menu_centertext(28, "UP DOWN OR 1 TO 7 SELECT  ENTER OPEN");
+    menu_centertext(28, "UP DOWN OR 1 TO 8 SELECT  ENTER OPEN");
     menu_centertext(29, "LEFT RIGHT COMPUTER  T QUICK STYLE");
     screen_set_tile_layer1(MENU_CURSOR_X, 8 + selected * 2, TILE_SELECT_CURSOR);
     menu_description(selected);
@@ -389,6 +389,7 @@ uint8_t menu_select(uint8_t initial_mode) {
             case '5':
             case '6':
             case '7':
+            case '8':
                 selected = key - '1';
                 break;
             case KEYCODE_LEFT:
@@ -403,7 +404,11 @@ uint8_t menu_select(uint8_t initial_mode) {
                 break;
             case KEYCODE_RETURN:
             case KEYCODE_SPACE:
-                if(selected == MENU_STYLE || selected == MENU_OPTIONS || selected == MENU_ABOUT) {
+                if(selected == MENU_EXIT) {
+                    sound_menu_effect(SFX_MENU_SELECT);
+                    if(menu_confirm("EXIT TO BASIC")) return MENU_EXIT;
+                }
+                else if(selected == MENU_STYLE || selected == MENU_OPTIONS || selected == MENU_ABOUT) {
                     sound_menu_effect(SFX_MENU_SELECT);
                     if(selected == MENU_STYLE) menu_styles();
                     else if(selected == MENU_OPTIONS) menu_options();

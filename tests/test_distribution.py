@@ -44,6 +44,7 @@ class DistributionTests(unittest.TestCase):
                         game.emu.advance(30)
                         game.press('Escape')
                         game.press('T')
+                    self.assert_exits_to_basic(game)
                 finally:
                     game.doCleanups()
 
@@ -72,8 +73,20 @@ class DistributionTests(unittest.TestCase):
                     game.assert_cursor(8)
                     game.start(1)
                     self.assertEqual(game.read('_game_mode'), bytes([0]))
+                    game.press('Escape', confirm_quit=True)
+                    self.assert_exits_to_basic(game)
                 finally:
                     game.doCleanups()
+
+    def assert_exits_to_basic(self, game):
+        # A BASIC cold start would load AUTOBOOT.X16 from the current directory
+        # again, so Exit must return to READY. without one.
+        game.press('8'); game.press('Return'); game.press('Left')
+        game.press('Return', confirm_quit=False)
+        game.emu.advance(300)
+        self.assertEqual(game.emu.read_memory(0x9F29)[0] & 0x7F, 0x21)
+        self.assertEqual(game.emu.read_memory(0x1B000 + 256, 12, space='vram')[::2],
+                         bytes([0x12, 0x05, 0x01, 0x04, 0x19, 0x2E]))
 
     def test_graphics_bundle_preserves_every_asset_and_index(self):
         data, entries = graphics_bundle()

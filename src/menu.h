@@ -48,15 +48,24 @@ void menu_settext(uint8_t x, uint8_t y, const char* str);
  */
 void menu_centertext(uint8_t y, const char* str);
 
-/* Confirm leaving a match, preserving its display and time on cancellation. */
+/* Main menu entry that leaves the game; menu_select returns it after Yes. */
+#define MENU_EXIT 7
+
+/*
+ * Ask a yes/no question in a modal box with No preselected, preserving the
+ * display and match time on cancellation. Return one for Yes.
+ */
+uint8_t __fastcall__ menu_confirm(const char* title);
+
+/* Confirm leaving a match. */
 uint8_t menu_quit(void);
 
 /**
  * @brief Run the main menu and return the selected game mode
  *
- * @param initial_mode Zero-based initial menu selection, 0..6
+ * @param initial_mode Zero-based initial menu selection, 0..7
  *
- * @return Selected GAME_MODE_* value
+ * @return Selected GAME_MODE_* value, or MENU_EXIT
  */
 uint8_t menu_select(uint8_t initial_mode);
 

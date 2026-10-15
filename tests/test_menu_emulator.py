@@ -94,7 +94,7 @@ class MenuTests(unittest.TestCase):
         return self.emu.read_memory(0x1A000 + (y * 64 + x) * 2, space="vram")[0]
 
     def assert_cursor(self, row):
-        for option in (8, 10, 12, 14, 16, 18, 20):
+        for option in (8, 10, 12, 14, 16, 18, 20, 22):
             self.assertEqual(self.tile(16, option), 34 if option == row else 0)
 
     def assert_menu_text(self, row, text, x=None):
@@ -133,7 +133,7 @@ class MenuTests(unittest.TestCase):
                 self.press('Return')
                 self.assert_background_box(theme, box)
                 self.press('Escape')
-                self.assert_background_box(theme, (2, 7, 10, 16), (15, 7, 23, 16))
+                self.assert_background_box(theme, (2, 7, 10, 17), (15, 7, 23, 17))
 
     def test_menu_title_survives_theme_submenu_and_game_transitions(self):
         for theme in (0, 1):
@@ -293,10 +293,10 @@ class MenuTests(unittest.TestCase):
                 for x in range(2, 12):
                     self.assertEqual(self.tile(x, y), 0)
             # Keep a free column inside both panel edges and between columns.
-            for y in range(7, 23):
+            for y in range(7, 24):
                 for x in (2, 7, 11):
                     self.assertEqual(self.tile(x, y), 0)
-            self.assert_background_box(theme, (2, 7, 10, 16), (15, 7, 23, 16))
+            self.assert_background_box(theme, (2, 7, 10, 17), (15, 7, 23, 17))
 
     def test_grid_lines_are_visible_in_both_directions_in_all_styles(self):
         with TemporaryDirectory(prefix='battleblocks-grid-') as directory:
@@ -450,8 +450,8 @@ class MenuTests(unittest.TestCase):
         self.assert_cursor(10)
         self.press("Up")
         self.assert_cursor(8)
-        self.press("Up")
-        self.assert_cursor(20)
+        self.press("Up")  # Wraps to Exit.
+        self.assert_cursor(22)
         self.press("Down")
         self.assert_cursor(8)
         self.press("2")
@@ -460,7 +460,7 @@ class MenuTests(unittest.TestCase):
         self.assert_cursor(12)
         self.press("4")
         self.assert_cursor(14)
-        self.assertEqual(self.tile(15, 23), 12)
+        self.assertEqual(self.tile(15, 24), 12)
 
     def test_style_menu_previews_applies_and_cancels_without_starting_game(self):
         arcade = self.emu.read_memory(0x1FA00, 512, space='vram')
